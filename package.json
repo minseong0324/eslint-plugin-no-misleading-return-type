@@ -1,0 +1,75 @@
+{
+  "name": "eslint-plugin-no-misleading-return-type",
+  "version": "1.0.0",
+  "description": "ESLint rule to detect return type annotations that are less precise than TypeScript's inferred type",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "prepack": "pnpm build",
+    "test": "tsx --test __tests__/unit/*.test.ts __tests__/integration/*.test.ts",
+    "test:unit": "tsx --test __tests__/unit/*.test.ts",
+    "test:integration": "tsx --test __tests__/integration/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome lint src __tests__",
+    "format": "biome format --write src __tests__",
+    "format:check": "biome format src __tests__",
+    "check": "biome check --write src __tests__",
+    "knip": "knip",
+    "publint": "publint",
+    "changeset": "changeset",
+    "changeset:version": "changeset version && pnpm install --no-frozen-lockfile && pnpm format",
+    "changeset:publish": "changeset publish"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@9.14.4",
+  "keywords": [
+    "eslint",
+    "eslint-plugin",
+    "typescript",
+    "return-type"
+  ],
+  "author": "minseong0324",
+  "license": "MIT",
+  "peerDependencies": {
+    "@typescript-eslint/utils": "^8.0.0",
+    "eslint": ">=9.0.0",
+    "typescript": ">=5.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.8",
+    "@changesets/cli": "^2.30.0",
+    "@svitejs/changesets-changelog-github-compact": "^1.2.0",
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/parser": "^8.57.1",
+    "@typescript-eslint/rule-tester": "^8.57.1",
+    "@typescript-eslint/utils": "^8.57.1",
+    "eslint": "^10.1.0",
+    "knip": "^6.0.3",
+    "publint": "^0.3.18",
+    "tsdown": "^0.21.4",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
