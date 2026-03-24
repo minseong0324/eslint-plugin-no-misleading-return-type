@@ -7,6 +7,7 @@ export function isFunctionLike(node: ts.Node) {
     ts.isArrowFunction(node) ||
     ts.isMethodDeclaration(node) ||
     ts.isGetAccessor(node) ||
-    ts.isSetAccessor(node)
+    ts.isSetAccessor(node) ||
+    ts.isConstructorDeclaration(node)
   );
 }
