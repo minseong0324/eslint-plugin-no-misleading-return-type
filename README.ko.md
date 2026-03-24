@@ -4,27 +4,46 @@
 
 ## 이 규칙이 필요한 이유
 
-TypeScript는 실제로 코드로부터 추론한 타입보다 **더 넓은(덜 정확한) 반환 타입 주석**을 허용합니다. 이로 인해 조용한 정확도 손실이 발생합니다. 리터럴 타입, 정확한 유니온, 그리고 다른 좁은 추론들의 이점을 잃게 됩니다.
+TypeScript는 실제 구현보다 **더 넓은(덜 정확한) 반환 타입 주석**을 허용합니다. 이로 인해 의도적으로 만든 정확성이 조용히 사라집니다.
 
 ```ts
-// TypeScript는 "idle"을 추론하지만, string을 받음
-function getStatus(): string { return "idle"; }  // 오류 없음!
+// 구현은 정확한 에러 메시지 맵을 반환하지만,
+// 명시적 반환 타입이 Record<string, string>으로 넓혀집니다.
+function getErrorMessages(): Record<string, string> {
+  return {
+    INVALID_TOKEN: 'Please log in again.',
+    RATE_LIMITED: 'Too many requests. Try again later.',
+    NETWORK_ERROR: 'Check your network connection.',
+  } as const;
+}
 
-// 더 나음: TypeScript가 정확한 타입을 추론하도록 함
-function getStatus() { return "idle"; }          // 타입: "idle"
+// 더 나음: TypeScript가 정확한 타입을 추론하도록 합니다.
+function getErrorMessages() {
+  return {
+    INVALID_TOKEN: 'Please log in again.',
+    RATE_LIMITED: 'Too many requests. Try again later.',
+    NETWORK_ERROR: 'Check your network connection.',
+  } as const;
+}
 ```
 
-이 규칙은 주석 타입이 추론 타입보다 넓은 경우를 감지하고 보고하여, 불필요한 주석을 제거하고 타입을 정확하게 유지하도록 도와줍니다.
+이 규칙은 주석 타입이 추론 타입보다 넓은 경우를 감지하고 보고하여, 불필요한 주석을 제거하고 구현이 제공하는 정확성을 보존하도록 도와줍니다.
 
 ## 설치
 
 ```bash
+# npm
+npm install -D eslint-plugin-no-misleading-return-type
+# yarn
+yarn add -D eslint-plugin-no-misleading-return-type
+# pnpm
 pnpm add -D eslint-plugin-no-misleading-return-type
 ```
 
-필수 요구사항:
-- ESLint >= 10.1
-- TypeScript >= 5.0
+**필수 요구사항:**
+- Node.js >= 22.12.0
+- ESLint `^9.0.0 || ^10.0.0`
+- TypeScript `>=5.0.0 <6.0.0` (tested: 5.0–5.9)
 - 타입 정보가 활성화된 `@typescript-eslint/parser`
 
 ## 설정
@@ -57,9 +76,12 @@ export default [
 ];
 ```
 
-**중요:** 타입 정보가 필요합니다. 다음 중 하나를 사용하세요:
+**타입 정보가 필요합니다.** 다음 중 하나를 사용하세요:
 - `projectService: { allowDefaultProject: [...] }` (ESLint 9+, 권장)
 - `project: "./tsconfig.json"` (기존 설정)
+
+> `TypeError: Cannot read properties of undefined (reading 'program')` 오류가 발생하면
+> 타입 정보가 설정되지 않은 것입니다. `parserOptions`를 확인하세요.
 
 ## 규칙: `no-misleading-return-type`
 
@@ -67,18 +89,23 @@ export default [
 
 함수의 명시적 반환 타입 주석이 TypeScript의 추론 타입보다 **넓은** 경우를 보고합니다.
 
-- **보고함:** 주석 타입이 추론 타입보다 넓음 (예: `string` vs `"idle"`)
+- **보고함:** 주석 타입이 추론 타입보다 넓음 (예: `Record<string, string>` vs `{ readonly INVALID_TOKEN: "..." }`)
 - **보고 안 함:** 주석 타입이 추론 타입과 같거나 더 좁음
-- **보고 안 함:** 주석 없음, void, any, unknown, never, 제너레이터, 제네릭, 게터/세터, 오버로드, 비동기 `Promise<void|any>`
+- **보고 안 함:** 주석 없음, `void`, `any`, `unknown`, `never`, 제너레이터, 제네릭, 게터/세터, 오버로드, 비동기 `Promise<void|any>`
 
 ### 유효한 경우 (경고 없음)
 
 ```ts
+// 주석 없음 — TypeScript가 정확한 타입을 추론
+function getErrorMessages() {
+  return {
+    INVALID_TOKEN: 'Please log in again.',
+    NETWORK_ERROR: 'Check your network connection.',
+  } as const;
+}
+
 // 주석이 추론과 일치
 function getStatus(): "idle" { return "idle"; }
-
-// 주석 없음 — 자동으로 추론됨
-function getStatus() { return "idle"; }
 
 // 이스케이프 해치 (의도적으로 넓은 타입)
 function run(): void { console.log("done"); }
@@ -91,10 +118,17 @@ async function greet(): Promise<"hello"> { return "hello"; }
 ### 유효하지 않은 경우 (경고 발생)
 
 ```ts
-// 주석이 추론보다 넓음
+// as const 맵이 명시적 주석으로 인해 넓어짐
+function getErrorMessages(): Record<string, string> {
+  return {
+    INVALID_TOKEN: 'Please log in again.',
+    NETWORK_ERROR: 'Check your network connection.',
+  } as const;
+}
+
+// 리터럴 타입이 넓어짐
 function getStatus(): string { return "idle"; }  // string > "idle"
 function getCode(): number { return 404; }       // number > 404
-function isOn(): boolean { return true; }        // boolean > true
 
 // 비동기 함수, 넓은 Promise 내부 타입
 async function greet(): Promise<string> { return "hello"; }  // Promise<string> > Promise<"hello">
@@ -131,19 +165,29 @@ function getStatus(loading: boolean): string {
 }
 ```
 
+## 검사하지 않는 케이스
+
+| 케이스 | 이유 |
+|--------|------|
+| 제네릭 함수 | 추론이 호출 지점에 의존 |
+| 제너레이터 함수 | 복잡한 이터레이터 타입 |
+| 게터 / 세터 | 접근자 의미론이 다름 |
+| `void`, `any`, `unknown`, `never` | 의도적인 이스케이프 해치 |
+| `Promise<void>` / `Promise<any>` | 의도적인 이스케이프 해치 |
+| `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
+| 재귀 함수 | 순환 타입 해석 |
+| 필수 string 프로퍼티가 있는 객체 리터럴 | TypeScript 컨텍스트 타입이 추론 전에 리터럴을 넓힘 |
+
 ## 의도적으로 넓은 타입이 필요한 경우
 
 일부 함수는 정당하게 넓은 반환 타입을 가집니다. `eslint-disable`을 사용하여 경고를 억제하세요:
 
 ```ts
+// 추론: "loading" | "idle" — 안정적인 공개 API 계약을 위해 의도적으로 string 사용
 // eslint-disable-next-line no-misleading-return-type/no-misleading-return-type
-function parse(input: string): any {
-  return JSON.parse(input);  // 의도적으로 any 반환
-}
-
-// eslint-disable-next-line no-misleading-return-type/no-misleading-return-type
-function fetch(): Promise<string> {
-  return asyncOperation();   // 의도적으로 넓은 타입
+function getStatus(loading: boolean): string {
+  if (loading) return 'loading';
+  return 'idle';
 }
 ```
 
