@@ -138,5 +138,39 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       `,
     },
   ],
-  invalid: [],
+  invalid: [
+    {
+      name: 'constructor return expression does not contaminate outer function inferred type',
+      // Without the isConstructorDeclaration guard in isFunctionLike, collectReturnTypes would
+      // traverse into the constructor and collect Object.create(null) (type: any).
+      // any contaminates the union → containsAny check → no warning (false negative).
+      // With the fix, constructor is blocked, outer infers "hello" → string > "hello" → warns.
+      code: `
+        function outer(): string {
+          class Inner {
+            constructor() { return Object.create(null); }
+          }
+          return 'hello';
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        function outer() {
+          class Inner {
+            constructor() { return Object.create(null); }
+          }
+          return 'hello';
+        }
+      `,
+            },
+          ],
+        },
+      ],
+    },
+  ],
 });
