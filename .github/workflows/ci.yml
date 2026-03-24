@@ -63,7 +63,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install TypeScript ${{ matrix.typescript-version }}
-        run: pnpm add -D typescript@${{ matrix.typescript-version }} --no-frozen-lockfile
+        run: pnpm add -D typescript@${{ matrix.typescript-version }}
 
       - name: Test
         run: pnpm test

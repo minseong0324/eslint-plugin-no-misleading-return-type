@@ -1,23 +1,5 @@
-import { after, describe, it } from 'node:test';
-import parser from '@typescript-eslint/parser';
-import { RuleTester } from '@typescript-eslint/rule-tester';
 import { noMisleadingReturnType } from '../../src/rules/no-misleading-return-type.js';
-
-RuleTester.afterAll = after;
-RuleTester.describe = describe;
-RuleTester.it = it;
-
-const ruleTester = new RuleTester({
-  languageOptions: {
-    parser,
-    parserOptions: {
-      projectService: {
-        allowDefaultProject: ['*.ts*'],
-        defaultProject: 'tsconfig.json',
-      },
-    },
-  },
-});
+import { ruleTester } from './_setup.js';
 
 ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
   valid: [],
