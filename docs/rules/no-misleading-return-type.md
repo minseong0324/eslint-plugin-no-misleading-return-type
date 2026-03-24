@@ -9,6 +9,14 @@ TypeScript allows you to write return type annotations that are **wider (less pr
 ### ❌ Invalid (warning)
 
 ```ts
+// Record<string, string> is wider than the inferred as const map
+function getErrorMessages(): Record<string, string> {
+  return {
+    INVALID_TOKEN: 'Please log in again.',
+    NETWORK_ERROR: 'Check your network connection.',
+  } as const;
+}
+
 // string is wider than the inferred "idle"
 function getStatus(): string {
   return 'idle';
@@ -17,11 +25,6 @@ function getStatus(): string {
 // number is wider than the inferred 404
 function getCode(): number {
   return 404;
-}
-
-// boolean is wider than the inferred true
-function isOn(): boolean {
-  return true;
 }
 
 // string is wider than the inferred "loading" | "idle"
@@ -39,6 +42,14 @@ async function greet(): Promise<string> {
 ### ✅ Valid (no warning)
 
 ```ts
+// No annotation — TypeScript infers the precise type
+function getErrorMessages() {
+  return {
+    INVALID_TOKEN: 'Please log in again.',
+    NETWORK_ERROR: 'Check your network connection.',
+  } as const;
+}
+
 // Annotation matches inferred
 function getStatus(): 'idle' {
   return 'idle';
@@ -108,3 +119,4 @@ function getStatus(): string {
 | `Promise<void>` / `Promise<any>` | Intentional escape hatches |
 | Functions with no `return` statement | Void functions — nothing to compare |
 | Recursive functions | Circular type resolution |
+| Object literals with required string properties | TypeScript contextual typing widens literals before inference |
