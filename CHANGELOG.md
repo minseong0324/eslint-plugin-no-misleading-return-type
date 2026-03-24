@@ -1,5 +1,17 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.2.0
+
+### Minor Changes
+
+- Add `meta` and `configs.recommended` exports for ESLint flat config support ([#19](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/19))
+
+### Patch Changes
+
+- Fix `isExported` guard to detect all export patterns (indirect arrow/function expression exports, exported class methods, class expression methods, renamed exports) preventing `isolatedDeclarations` breakage when using `fix: 'autofix'` ([#17](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/17))
+
+- Add explicit `Options` and `MessageIds` type parameters to `createRule` and simplify generator guard ([#18](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/18))
+
 ## 0.1.2
 
 ### Patch Changes
