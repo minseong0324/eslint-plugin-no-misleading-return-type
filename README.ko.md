@@ -41,7 +41,7 @@ pnpm add -D eslint-plugin-no-misleading-return-type
 ```
 
 **필수 요구사항:**
-- Node.js >= 22.12.0
+- Node.js `^18.18.0 || ^20.9.0 || >=21.1.0`
 - ESLint `^9.0.0 || ^10.0.0`
 - TypeScript `>=5.0.0 <6.0.0` (tested: 5.0–5.9)
 - 타입 정보가 활성화된 `@typescript-eslint/parser`
@@ -178,6 +178,7 @@ function getStatus(loading: boolean): string {
 | `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
 | 재귀 함수 | 순환 타입 해석 |
 | 필수 string 프로퍼티가 있는 객체 리터럴 | TypeScript 컨텍스트 타입이 추론 전에 리터럴을 넓힘 |
+| 어노테이션에 `undefined` 또는 `void`가 포함되지만 추론 타입에는 없는 경우 | 암시적 undefined 반환 경로 휴리스틱 — 명시적 `return` 없는 코드 경로를 추적할 수 없음 |
 
 ## 의도적으로 넓은 타입이 필요한 경우
 
