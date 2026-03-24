@@ -55,7 +55,7 @@ export const noMisleadingReturnType = createRule({
       annotated: ts.Type,
       inferred: ts.Type,
     ) {
-      // isTypeAssignableTo is public API since TypeScript 5.x
+      // isTypeAssignableTo is public API since TypeScript 5.0
       const inferredFitsInAnnotated = checker.isTypeAssignableTo(
         inferred,
         annotated,
