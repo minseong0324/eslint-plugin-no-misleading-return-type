@@ -6,7 +6,8 @@ on:
     branches: [main]
 
 jobs:
-  ci:
+  lint:
+    name: Lint & Type check
     runs-on: ubuntu-latest
 
     steps:
@@ -34,6 +35,36 @@ jobs:
       - name: Type check
         run: pnpm typecheck
 
+      - name: Knip
+        run: pnpm knip
+
+  test:
+    name: Test (TypeScript ${{ matrix.typescript-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        typescript-version: ['5.4', '5.6', '5.9']
+      fail-fast: false
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'pnpm'
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Install TypeScript ${{ matrix.typescript-version }}
+        run: pnpm add -D typescript@${{ matrix.typescript-version }} --no-frozen-lockfile
+
       - name: Test
         run: pnpm test
 
@@ -42,6 +73,3 @@ jobs:
 
       - name: Publint
         run: pnpm publint
-
-      - name: Knip
-        run: pnpm knip
