@@ -78,5 +78,39 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         },
       ],
     },
+
+    // as const assertion overrides contextual typing — literals are preserved.
+    // This is the README representative example: Record<string, string> widens an as const map.
+    {
+      name: 'Record<string, string> annotated, as const error-message map returned — inferred has literal values',
+      code: `
+        function getErrorMessages(): Record<string, string> {
+          return {
+            INVALID_TOKEN: 'Please log in again.',
+            RATE_LIMITED: 'Too many requests. Try again later.',
+            NETWORK_ERROR: 'Check your network connection.',
+          } as const;
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        function getErrorMessages() {
+          return {
+            INVALID_TOKEN: 'Please log in again.',
+            RATE_LIMITED: 'Too many requests. Try again later.',
+            NETWORK_ERROR: 'Check your network connection.',
+          } as const;
+        }
+      `,
+            },
+          ],
+        },
+      ],
+    },
   ],
 });
