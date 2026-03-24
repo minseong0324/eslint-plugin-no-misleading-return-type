@@ -13,8 +13,7 @@ export const configs = {
   recommended: {
     plugins: { 'no-misleading-return-type': plugin },
     rules: {
-      'no-misleading-return-type/no-misleading-return-type':
-        'warn' as const,
+      'no-misleading-return-type/no-misleading-return-type': 'warn' as const,
     },
   },
 };
