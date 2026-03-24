@@ -293,37 +293,141 @@ export const noMisleadingReturnType = createRule({
         : checker.typeToString(effectiveInferred);
 
       const fixOption = context.options[0]?.fix ?? 'suggestion';
-      // Check both inline export and indirect `export { foo }` patterns
+      // Check if removing this return type could break isolatedDeclarations.
+      // Covers: direct exports, export-via-variable, exported class methods,
+      // and indirect exports including `export { foo as bar }` renames.
       const isExported = (() => {
+        // Helper: check if a local symbol appears in the file's export map.
+        // Must iterate values (not keys) because `export { foo as bar }` stores
+        // the exported name ("bar") as key, not the local name ("foo").
+        const isSymbolExported = (nameNode: ts.Node): boolean => {
+          const nameSymbol = checker.getSymbolAtLocation(nameNode);
+          if (!nameSymbol) {
+            return false;
+          }
+          const fileSymbol = checker.getSymbolAtLocation(
+            nameNode.getSourceFile(),
+          );
+          if (!fileSymbol?.exports) {
+            return false;
+          }
+          for (const exportedSymbol of fileSymbol.exports.values()) {
+            if (exportedSymbol === nameSymbol) {
+              return true;
+            }
+            if (exportedSymbol.flags & ts.SymbolFlags.Alias) {
+              const resolved = checker.getAliasedSymbol(exportedSymbol);
+              if (resolved === nameSymbol) {
+                return true;
+              }
+            }
+          }
+          return false;
+        };
+
+        // === Direct export: owner's parent is Export*Declaration ===
+
+        // Case A: export function foo() / export default function()
         if (
           node.parent?.type === 'ExportNamedDeclaration' ||
           node.parent?.type === 'ExportDefaultDeclaration'
         ) {
           return true;
         }
-        // export const foo = function(): T {} or export const foo = (): T => ...
-        // FunctionExpression/ArrowFunctionExpression → VariableDeclarator → VariableDeclaration → ExportNamedDeclaration
+
+        // Case B: export const foo = function/arrow
+        // FE/Arrow → VariableDeclarator → VariableDeclaration → Export*Declaration
         if (
           (node.type === 'FunctionExpression' ||
             node.type === 'ArrowFunctionExpression') &&
           node.parent?.type === 'VariableDeclarator' &&
           node.parent.parent?.type === 'VariableDeclaration' &&
-          node.parent.parent.parent?.type === 'ExportNamedDeclaration'
+          (node.parent.parent.parent?.type === 'ExportNamedDeclaration' ||
+            node.parent.parent.parent?.type === 'ExportDefaultDeclaration')
         ) {
           return true;
         }
-        // Indirect export: function foo() {} ... export { foo }
-        if (ts.isFunctionDeclaration(tsFunctionNode) && tsFunctionNode.name) {
-          const nameSymbol = checker.getSymbolAtLocation(tsFunctionNode.name);
-          if (nameSymbol) {
-            const fileSymbol = checker.getSymbolAtLocation(
-              tsFunctionNode.getSourceFile(),
-            );
-            if (fileSymbol?.exports?.has(nameSymbol.escapedName)) {
+
+        // Case C: export class Foo { method() {} } / export default class { method() {} }
+        // FE → MethodDefinition → ClassBody → ClassDecl/Expr → Export*Declaration
+        if (node.parent?.type === 'MethodDefinition') {
+          const classNode = node.parent.parent?.parent;
+          if (classNode) {
+            if (
+              classNode.parent?.type === 'ExportNamedDeclaration' ||
+              classNode.parent?.type === 'ExportDefaultDeclaration'
+            ) {
+              return true;
+            }
+            // export const Foo = class { ... }
+            if (
+              classNode.type === 'ClassExpression' &&
+              classNode.parent?.type === 'VariableDeclarator' &&
+              classNode.parent.parent?.type === 'VariableDeclaration' &&
+              (classNode.parent.parent.parent?.type ===
+                'ExportNamedDeclaration' ||
+                classNode.parent.parent.parent?.type ===
+                  'ExportDefaultDeclaration')
+            ) {
               return true;
             }
           }
         }
+
+        // === Indirect export: symbol in file's exports map ===
+
+        // Case D: function foo() {} ... export { foo }
+        if (ts.isFunctionDeclaration(tsFunctionNode) && tsFunctionNode.name) {
+          return isSymbolExported(tsFunctionNode.name);
+        }
+
+        // Case E: const foo = () => {} ... export { foo }
+        if (
+          (node.type === 'FunctionExpression' ||
+            node.type === 'ArrowFunctionExpression') &&
+          node.parent?.type === 'VariableDeclarator'
+        ) {
+          const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(
+            node.parent,
+          );
+          if (
+            ts.isVariableDeclaration(tsVarDecl) &&
+            ts.isIdentifier(tsVarDecl.name)
+          ) {
+            return isSymbolExported(tsVarDecl.name);
+          }
+        }
+
+        // Case F: class method in indirectly exported class
+        if (node.parent?.type === 'MethodDefinition') {
+          const classNode = node.parent.parent?.parent;
+          if (classNode) {
+            // ClassDeclaration: class Foo {} export { Foo }
+            if (classNode.type === 'ClassDeclaration' && classNode.id) {
+              const tsClassNode =
+                parserServices.esTreeNodeToTSNodeMap.get(classNode);
+              if (ts.isClassDeclaration(tsClassNode) && tsClassNode.name) {
+                return isSymbolExported(tsClassNode.name);
+              }
+            }
+            // ClassExpression: const Foo = class {} ... export { Foo }
+            if (
+              classNode.type === 'ClassExpression' &&
+              classNode.parent?.type === 'VariableDeclarator'
+            ) {
+              const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(
+                classNode.parent,
+              );
+              if (
+                ts.isVariableDeclaration(tsVarDecl) &&
+                ts.isIdentifier(tsVarDecl.name)
+              ) {
+                return isSymbolExported(tsVarDecl.name);
+              }
+            }
+          }
+        }
+
         return false;
       })();
       // autofix on exported functions could break isolatedDeclarations — fall back to suggestion
