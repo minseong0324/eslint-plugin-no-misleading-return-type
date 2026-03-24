@@ -16,7 +16,11 @@ type FunctionNode =
   | TSESTree.FunctionExpression
   | TSESTree.ArrowFunctionExpression;
 
-export const noMisleadingReturnType = createRule({
+type FixOption = 'suggestion' | 'autofix' | 'none';
+type Options = [{ fix: FixOption }];
+type MessageIds = 'misleadingReturnType' | 'removeReturnType';
+
+export const noMisleadingReturnType = createRule<Options, MessageIds>({
   name: 'no-misleading-return-type',
   meta: {
     type: 'suggestion',
@@ -45,7 +49,7 @@ export const noMisleadingReturnType = createRule({
       },
     ],
   },
-  defaultOptions: [{ fix: 'suggestion' as 'suggestion' | 'autofix' | 'none' }],
+  defaultOptions: [{ fix: 'suggestion' }],
   create(context) {
     const parserServices = ESLintUtils.getParserServices(context);
     const checker = parserServices.program.getTypeChecker();
@@ -130,7 +134,7 @@ export const noMisleadingReturnType = createRule({
         // differ from regular functions (no explicit call-site inference).
         return;
       }
-      if (node.type !== 'ArrowFunctionExpression' && node.generator) {
+      if (node.generator) {
         // generators — v1 skip
         // TODO(v2): Generator return type is Iterator<T, TReturn, TNext>.
         // Unwrapping the yielded/return types is non-trivial. Skipped for v1.
