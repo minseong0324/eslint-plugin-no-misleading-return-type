@@ -52,6 +52,14 @@
   ],
   "author": "minseong0324",
   "license": "MIT",
+  "homepage": "https://github.com/minseong0324/eslint-plugin-no-misleading-return-type#readme",
+  "bugs": {
+    "url": "https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/minseong0324/eslint-plugin-no-misleading-return-type"
+  },
   "peerDependencies": {
     "@typescript-eslint/utils": "^8.0.0",
     "eslint": ">=9.0.0",
