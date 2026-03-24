@@ -200,11 +200,11 @@ export const noMisleadingReturnType = createRule({
             // Public API only supports union creation via AST/inference, not from runtime type arrays.
             // The typeof guard ensures safe fallback if this API is removed in a future TS version.
             const getUnionType = (checker as any).getUnionType;
-            // UnionReduction.Literal = 2 preserves literal types in the resulting union
-            // (vs UnionReduction.Subtype = 1, which collapses subtypes).
-            // Fallback to 2 if the enum is renamed or removed in a future TS version.
+            // UnionReduction.Literal = 1 preserves literal types in the resulting union
+            // (vs UnionReduction.Subtype = 2, which collapses subtypes into their base types).
+            // Fallback to 1 if the enum is renamed or removed in a future TS version.
             const UnionReductionLiteral =
-              (ts as any).UnionReduction?.Literal ?? 2;
+              (ts as any).UnionReduction?.Literal ?? 1;
             if (typeof getUnionType !== 'function') {
               return; // Internal API unavailable — skip safely
             }
