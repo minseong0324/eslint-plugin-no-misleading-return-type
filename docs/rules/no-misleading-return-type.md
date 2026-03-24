@@ -120,3 +120,4 @@ function getStatus(): string {
 | Functions with no `return` statement | Void functions — nothing to compare |
 | Recursive functions | Circular type resolution |
 | Object literals with required string properties | TypeScript contextual typing widens literals before inference |
+| `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |

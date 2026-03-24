@@ -41,7 +41,7 @@ pnpm add -D eslint-plugin-no-misleading-return-type
 ```
 
 **Requirements:**
-- Node.js >= 22.12.0
+- Node.js `^18.18.0 || ^20.9.0 || >=21.1.0`
 - ESLint `^9.0.0 || ^10.0.0`
 - TypeScript `>=5.0.0 <6.0.0` (tested: 5.0–5.9)
 - `@typescript-eslint/parser` with type information enabled
@@ -178,6 +178,7 @@ function getStatus(loading: boolean): string {
 | Functions with no `return` | Void functions — nothing to compare |
 | Recursive functions | Circular type resolution |
 | Object literals with required string properties | TypeScript contextual typing widens literals before inference |
+| `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
 
 ## When to intentionally widen
 
