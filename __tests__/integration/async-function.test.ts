@@ -50,6 +50,28 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
     },
+    {
+      name: 'return Promise.resolve with matching annotation: Promise<"hello"> annotated, Promise.resolve("hello") returned',
+      code: `async function greet(): Promise<"hello"> { return Promise.resolve("hello"); }`,
+    },
+    // Contextual typing limitation: when the function has Promise<string> annotation,
+    // TypeScript contextually widens Promise.resolve("hello") to Promise<string>,
+    // making the literal "hello" invisible to getTypeAtLocation. Cannot detect in v1.
+    {
+      name: 'contextual typing limitation: Promise<string> annotated, Promise.resolve("hello") returned — literal hidden by context',
+      code: `async function greet(): Promise<string> { return Promise.resolve("hello"); }`,
+    },
+    {
+      name: 'contextual typing limitation: Promise<string> annotated, await Promise.resolve("hello") returned — literal hidden by context',
+      code: `async function greet(): Promise<string> { return await Promise.resolve("hello"); }`,
+    },
+    {
+      name: 'async function returning another async function result with matching annotation',
+      code: `
+        async function inner(): Promise<"ok"> { return "ok"; }
+        async function outer(): Promise<"ok"> { return inner(); }
+      `,
+    },
   ],
   invalid: [
     {
@@ -101,6 +123,31 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
           if (x) return "a";
           return "b";
         }
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'Promise<string> annotated, returns another async function result typed Promise<"ok">',
+      code: `
+        async function inner(): Promise<"ok"> { return "ok"; }
+        async function outer(): Promise<string> { return inner(); }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          data: {
+            annotated: 'Promise<string>',
+            inferred: 'Promise<"ok">',
+          },
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        async function inner(): Promise<"ok"> { return "ok"; }
+        async function outer() { return inner(); }
       `,
             },
           ],

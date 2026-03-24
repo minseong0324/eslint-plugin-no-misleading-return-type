@@ -96,6 +96,26 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       code: `declare function foo(): string;`,
     },
 
+    // recursive functions
+    // The rule catches circular type resolution via catch { return; }.
+    // These cases are documented as v1 limitations (see docs/rules/no-misleading-return-type.md).
+    {
+      name: 'direct recursive function → skip (circular type resolution)',
+      code: `
+        function fib(n: number): number {
+          if (n <= 1) return n;
+          return fib(n - 1) + fib(n - 2);
+        }
+      `,
+    },
+    {
+      name: 'mutual recursion (isEven/isOdd) → skip (circular type resolution)',
+      code: `
+        function isEven(n: number): boolean { return n === 0 ? true : isOdd(n - 1); }
+        function isOdd(n: number): boolean { return n === 0 ? false : isEven(n - 1); }
+      `,
+    },
+
     // inferred type reliability
     {
       name: 'inferred type contains any → skip',

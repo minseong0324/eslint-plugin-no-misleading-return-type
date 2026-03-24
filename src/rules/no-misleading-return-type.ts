@@ -201,7 +201,9 @@ export const noMisleadingReturnType = createRule({
           }
         }
       } catch {
-        // Recursive functions can cause circular type resolution
+        // Recursive functions can cause circular type resolution — TypeScript may throw
+        // or return an incomplete type when a function's return type depends on itself.
+        // Skipping these is intentional (v1 limitation). See docs for details.
         return;
       }
 
@@ -210,8 +212,12 @@ export const noMisleadingReturnType = createRule({
       } // any-contaminated inference is unreliable
 
       // Phase 5: comparison
+      // effectiveInferred is the type to compare against annotated.
+      // For async functions this may be unwrapped from Promise<T>.
+      let effectiveInferred = inferredType;
+
       if (node.async) {
-        // async functions: unwrap Promise<T> from both sides before comparing
+        // async functions: unwrap Promise<T> from annotated side
         if (!annotatedType.symbol || annotatedType.symbol.name !== 'Promise') {
           return;
         }
@@ -226,33 +232,49 @@ export const noMisleadingReturnType = createRule({
         if (isEscapeHatch(annotatedInner)) {
           return;
         } // Promise<void>, Promise<any>, etc.
-        // inferredType is already the unwrapped value from return statement traversal
+
+        // Also unwrap inferred type if it's Promise<T> (e.g., return someAsyncFn()).
+        // In async functions, returning Promise<T> resolves to T, so compare inner types.
+        // Without this, annotated inner (string) vs inferred Promise<"ok"> would be incomparable.
+        if (
+          inferredType.symbol?.name === 'Promise' &&
+          inferredType.flags & ts.TypeFlags.Object &&
+          (inferredType as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
+        ) {
+          const inferredArgs = checker.getTypeArguments(
+            inferredType as ts.TypeReference,
+          );
+          if (inferredArgs && inferredArgs.length > 0) {
+            effectiveInferred = inferredArgs[0];
+          }
+        }
+
         if (
           includesUndefined(annotatedInner) &&
-          !includesUndefined(inferredType)
+          !includesUndefined(effectiveInferred)
         ) {
           return; // implicit undefined path heuristic
         }
-        if (!isAnnotatedWiderThanInferred(annotatedInner, inferredType)) {
+        if (!isAnnotatedWiderThanInferred(annotatedInner, effectiveInferred)) {
           return;
         }
       } else {
         if (
           includesUndefined(annotatedType) &&
-          !includesUndefined(inferredType)
+          !includesUndefined(effectiveInferred)
         ) {
           return; // implicit undefined path heuristic
         }
-        if (!isAnnotatedWiderThanInferred(annotatedType, inferredType)) {
+        if (!isAnnotatedWiderThanInferred(annotatedType, effectiveInferred)) {
           return;
         }
       }
 
-      // Build the inferred type string for the message
-      // For async functions, re-wrap the unwrapped inferred type to match annotated side
+      // Build the inferred type string for the message.
+      // For async functions, re-wrap effectiveInferred to show Promise<inner>.
       const inferredTypeString = node.async
-        ? `Promise<${checker.typeToString(inferredType)}>`
-        : checker.typeToString(inferredType);
+        ? `Promise<${checker.typeToString(effectiveInferred)}>`
+        : checker.typeToString(effectiveInferred);
 
       const fixOption = context.options[0]?.fix ?? 'suggestion';
       // Check both inline export and indirect `export { foo }` patterns
