@@ -137,6 +137,18 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
     },
+    {
+      name: 'string | void annotation with implicit void return path → skip (includesUndefined covers void)',
+      // Without the Void flag in includesUndefined, this would be a false positive:
+      // annotated = string | void, inferred = string (only the explicit return path),
+      // string is assignable to string|void → would look like annotation is wider.
+      // includesUndefined(annotated) must return true to suppress the check.
+      code: `
+        function maybePrint(flag: boolean): string | void {
+          if (flag) return "hello";
+        }
+      `,
+    },
   ],
   invalid: [
     {

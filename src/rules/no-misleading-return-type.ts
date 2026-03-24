@@ -216,9 +216,10 @@ export const noMisleadingReturnType = createRule({
           }
         }
       } catch {
-        // Recursive functions can cause circular type resolution — TypeScript may throw
-        // or return an incomplete type when a function's return type depends on itself.
-        // Skipping these is intentional (v1 limitation). See docs for details.
+        // Intentional broad catch: TypeScript's type resolution throws on recursive /
+        // mutually-recursive functions (circular type dependency). Any other exception
+        // here also results in a missed diagnostic rather than a crash, which is
+        // acceptable for v1. Tracked as a known v1 limitation in the docs.
         return;
       }
 
@@ -297,6 +298,17 @@ export const noMisleadingReturnType = createRule({
         if (
           node.parent?.type === 'ExportNamedDeclaration' ||
           node.parent?.type === 'ExportDefaultDeclaration'
+        ) {
+          return true;
+        }
+        // export const foo = function(): T {} or export const foo = (): T => ...
+        // FunctionExpression/ArrowFunctionExpression → VariableDeclarator → VariableDeclaration → ExportNamedDeclaration
+        if (
+          (node.type === 'FunctionExpression' ||
+            node.type === 'ArrowFunctionExpression') &&
+          node.parent?.type === 'VariableDeclarator' &&
+          node.parent.parent?.type === 'VariableDeclaration' &&
+          node.parent.parent.parent?.type === 'ExportNamedDeclaration'
         ) {
           return true;
         }

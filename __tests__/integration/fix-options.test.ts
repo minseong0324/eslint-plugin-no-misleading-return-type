@@ -45,6 +45,38 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       ],
     },
     {
+      name: 'fix: autofix on exported function expression (export const foo = function()) — falls back to suggestion',
+      options: [{ fix: 'autofix' }],
+      code: `export const getStatus = function(): string { return "idle"; }`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `export const getStatus = function() { return "idle"; }`,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'fix: autofix on exported arrow function expression (export const foo = () =>) — falls back to suggestion',
+      options: [{ fix: 'autofix' }],
+      code: `export const getStatus = (): string => "idle";`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `export const getStatus = () => "idle";`,
+            },
+          ],
+        },
+      ],
+    },
+    {
       name: 'fix: none — reports without any fix',
       options: [{ fix: 'none' }],
       code: `function foo(): string { return "hello"; }`,

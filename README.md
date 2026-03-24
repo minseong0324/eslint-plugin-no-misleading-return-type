@@ -52,7 +52,8 @@ Add the plugin to your ESLint flat config with TypeScript support:
 
 ```ts
 // eslint.config.ts
-import * as noMisleadingReturnType from "eslint-plugin-no-misleading-return-type";
+import noMisleadingReturnType from "eslint-plugin-no-misleading-return-type";
+// or: import * as noMisleadingReturnType from "eslint-plugin-no-misleading-return-type";
 import parser from "@typescript-eslint/parser";
 
 export default [
@@ -109,7 +110,7 @@ function getStatus(): "idle" { return "idle"; }
 
 // Escape hatches (intentionally wide types)
 function run(): void { console.log("done"); }
-function parse(): any { return JSON.parse(s); }
+function parse(s: string): any { return JSON.parse(s); }
 
 // Async with matching inner type
 async function greet(): Promise<"hello"> { return "hello"; }
