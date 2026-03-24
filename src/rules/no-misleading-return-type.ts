@@ -124,13 +124,24 @@ export const noMisleadingReturnType = createRule({
         node.parent.type === 'MethodDefinition' &&
         (node.parent.kind === 'get' || node.parent.kind === 'set')
       ) {
-        return; // getter/setter — v1 skip
+        // getter/setter — v1 skip
+        // TODO(v2): Getters could be compared if we also inspect the setter's
+        // parameter type. Skipped because getter-only return type semantics
+        // differ from regular functions (no explicit call-site inference).
+        return;
       }
       if (node.type !== 'ArrowFunctionExpression' && node.generator) {
-        return; // generators — v1 skip
+        // generators — v1 skip
+        // TODO(v2): Generator return type is Iterator<T, TReturn, TNext>.
+        // Unwrapping the yielded/return types is non-trivial. Skipped for v1.
+        return;
       }
       if (node.typeParameters) {
-        return; // generic functions — inference depends on call-site
+        // generic functions — v1 skip
+        // Inference depends on call-site instantiation, not the function body alone.
+        // TODO(v2): Could check per call-site with generic instantiation,
+        // but the scope is too broad and error-prone for v1.
+        return;
       }
 
       // Phase 2: TS node mapping
@@ -184,10 +195,14 @@ export const noMisleadingReturnType = createRule({
           if (returnTypes.length === 1) {
             inferredType = returnTypes[0];
           } else {
-            // getUnionType is an internal TypeScript API used by typescript-eslint itself.
-            // No public alternative exists for constructing a union from an array of types.
-            // Guard against removal in future TS versions.
+            // getUnionType is an internal TypeScript API also used by typescript-eslint itself.
+            // No public alternative exists for constructing a union from an array of ts.Type objects.
+            // Public API only supports union creation via AST/inference, not from runtime type arrays.
+            // The typeof guard ensures safe fallback if this API is removed in a future TS version.
             const getUnionType = (checker as any).getUnionType;
+            // UnionReduction.Literal = 2 preserves literal types in the resulting union
+            // (vs UnionReduction.Subtype = 1, which collapses subtypes).
+            // Fallback to 2 if the enum is renamed or removed in a future TS version.
             const UnionReductionLiteral =
               (ts as any).UnionReduction?.Literal ?? 2;
             if (typeof getUnionType !== 'function') {
