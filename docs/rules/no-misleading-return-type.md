@@ -64,7 +64,7 @@ function getStatus() {
 function run(): void {
   console.log('done');
 }
-function parse(): any {
+function parse(s: string): any {
   return JSON.parse(s);
 }
 
