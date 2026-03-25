@@ -365,57 +365,60 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       );
 
       if (effectiveFix === 'autofix') {
-        context.report({
+        return context.report({
           node: node.returnType,
           messageId: 'misleadingReturnType',
           data: reportData,
           fix: (fixer) => fixer.remove(node.returnType!),
         });
-      } else if (effectiveFix === 'suggestion') {
-        const suggestions: {
-          messageId: MessageIds;
-          data?: Record<string, string>;
-          fix: (fixer: TSESLint.RuleFixer) => TSESLint.RuleFix;
-        }[] = [];
-        // Removing the return type on exported functions could break
-        // isolatedDeclarations — only offer narrow suggestion for those.
-        if (!fnIsExported) {
-          suggestions.push({
-            messageId: 'removeReturnType',
-            fix: (fixer: TSESLint.RuleFixer) => fixer.remove(node.returnType!),
-          });
-        }
-        if (isSafeTypeString) {
-          suggestions.push({
-            messageId: 'narrowReturnType',
-            data: reportData,
-            fix: (fixer: TSESLint.RuleFixer) =>
-              fixer.replaceText(node.returnType!, `: ${inferredTypeString}`),
-          });
-        }
-        // If no suggestions are available (exported + unsafe type string),
-        // fall back to report-only.
-        if (suggestions.length > 0) {
-          context.report({
-            node: node.returnType,
-            messageId: 'misleadingReturnType',
-            data: reportData,
-            suggest: suggestions,
-          });
-        } else {
-          context.report({
-            node: node.returnType,
-            messageId: 'misleadingReturnType',
-            data: reportData,
-          });
-        }
-      } else {
-        context.report({
+      }
+
+      if (effectiveFix !== 'suggestion') {
+        return context.report({
           node: node.returnType,
           messageId: 'misleadingReturnType',
           data: reportData,
         });
       }
+
+      const suggestions: {
+        messageId: MessageIds;
+        data?: Record<string, string>;
+        fix: (fixer: TSESLint.RuleFixer) => TSESLint.RuleFix;
+      }[] = [];
+      // Removing the return type on exported functions could break
+      // isolatedDeclarations — only offer narrow suggestion for those.
+      if (!fnIsExported) {
+        suggestions.push({
+          messageId: 'removeReturnType',
+          fix: (fixer: TSESLint.RuleFixer) => fixer.remove(node.returnType!),
+        });
+      }
+      if (isSafeTypeString) {
+        suggestions.push({
+          messageId: 'narrowReturnType',
+          data: reportData,
+          fix: (fixer: TSESLint.RuleFixer) =>
+            fixer.replaceText(node.returnType!, `: ${inferredTypeString}`),
+        });
+      }
+
+      // If no suggestions are available (exported + unsafe type string),
+      // fall back to report-only.
+      if (suggestions.length === 0) {
+        return context.report({
+          node: node.returnType,
+          messageId: 'misleadingReturnType',
+          data: reportData,
+        });
+      }
+
+      context.report({
+        node: node.returnType,
+        messageId: 'misleadingReturnType',
+        data: reportData,
+        suggest: suggestions,
+      });
     }
 
     return {
