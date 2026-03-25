@@ -1,4 +1,4 @@
-import type { TSESTree } from '@typescript-eslint/utils';
+import type { TSESLint, TSESTree } from '@typescript-eslint/utils';
 import { ESLintUtils } from '@typescript-eslint/utils';
 import ts from 'typescript';
 import { createUnionType } from '../helpers/create-union-type.js';
@@ -186,10 +186,10 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       const tsReturnTypeNode = parserServices.esTreeNodeToTSNodeMap.get(
         node.returnType.typeAnnotation,
       );
-      // returnType.typeAnnotation always maps to a ts.TypeNode — safe cast
-      const annotatedType = checker.getTypeFromTypeNode(
-        tsReturnTypeNode as ts.TypeNode,
-      );
+      if (!ts.isTypeNode(tsReturnTypeNode)) {
+        return;
+      }
+      const annotatedType = checker.getTypeFromTypeNode(tsReturnTypeNode);
       if (isEscapeHatch(annotatedType)) {
         return;
       }
@@ -335,7 +335,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       // For async functions, re-wrap effectiveInferred using the original wrapper name
       // (Promise or PromiseLike) to preserve the user's intent.
       const inferredTypeString = node.async
-        ? `${annotatedType.symbol?.name ?? 'Promise'}<${checker.typeToString(effectiveInferred)}>`
+        ? `${annotatedType.symbol?.name ?? 'Promise'}<${checker.typeToString(
+            effectiveInferred,
+          )}>`
         : checker.typeToString(effectiveInferred);
 
       const fixOption = context.options[0]?.fix ?? 'suggestion';
@@ -355,38 +357,68 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         inferred: truncateTypeString(inferredTypeString),
       };
 
+      // typeToString can produce unparseable strings (e.g. "..." truncation,
+      // internal names like "__type", or "typeof import(...)"). Skip narrow
+      // suggestion when the type string is unlikely to be valid TS syntax.
+      const isSafeTypeString = !/\.{3}(?!\.)|^__\w+|typeof import\(/.test(
+        inferredTypeString,
+      );
+
       if (effectiveFix === 'autofix') {
-        context.report({
+        return context.report({
           node: node.returnType,
           messageId: 'misleadingReturnType',
           data: reportData,
           fix: (fixer) => fixer.remove(node.returnType!),
         });
-      } else if (effectiveFix === 'suggestion') {
-        context.report({
-          node: node.returnType,
-          messageId: 'misleadingReturnType',
-          data: reportData,
-          suggest: [
-            {
-              messageId: 'removeReturnType',
-              fix: (fixer) => fixer.remove(node.returnType!),
-            },
-            {
-              messageId: 'narrowReturnType',
-              data: reportData,
-              fix: (fixer) =>
-                fixer.replaceText(node.returnType!, `: ${inferredTypeString}`),
-            },
-          ],
-        });
-      } else {
-        context.report({
+      }
+
+      if (effectiveFix !== 'suggestion') {
+        return context.report({
           node: node.returnType,
           messageId: 'misleadingReturnType',
           data: reportData,
         });
       }
+
+      const suggestions: {
+        messageId: MessageIds;
+        data?: Record<string, string>;
+        fix: (fixer: TSESLint.RuleFixer) => TSESLint.RuleFix;
+      }[] = [];
+      // Removing the return type on exported functions could break
+      // isolatedDeclarations — only offer narrow suggestion for those.
+      if (!fnIsExported) {
+        suggestions.push({
+          messageId: 'removeReturnType',
+          fix: (fixer: TSESLint.RuleFixer) => fixer.remove(node.returnType!),
+        });
+      }
+      if (isSafeTypeString) {
+        suggestions.push({
+          messageId: 'narrowReturnType',
+          data: reportData,
+          fix: (fixer: TSESLint.RuleFixer) =>
+            fixer.replaceText(node.returnType!, `: ${inferredTypeString}`),
+        });
+      }
+
+      // If no suggestions are available (exported + unsafe type string),
+      // fall back to report-only.
+      if (suggestions.length === 0) {
+        return context.report({
+          node: node.returnType,
+          messageId: 'misleadingReturnType',
+          data: reportData,
+        });
+      }
+
+      context.report({
+        node: node.returnType,
+        messageId: 'misleadingReturnType',
+        data: reportData,
+        suggest: suggestions,
+      });
     }
 
     return {
