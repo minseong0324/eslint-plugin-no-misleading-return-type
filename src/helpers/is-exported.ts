@@ -144,30 +144,43 @@ export function isExported(
   }
 
   // Case G: export const api = { method() {} } (object literal method)
-  // FE -> Property -> ObjectExpression -> VariableDeclarator -> VariableDeclaration -> Export*Declaration
+  // Also handles: export default { method() {} }, nested objects, and indirect exports.
+  // Traverses Property → ObjectExpression chains upward to find the owning declaration.
   if (node.parent?.type === 'Property') {
-    const objExpr = node.parent.parent;
-    if (
-      objExpr?.type === 'ObjectExpression' &&
-      objExpr.parent?.type === 'VariableDeclarator' &&
-      objExpr.parent.parent?.type === 'VariableDeclaration'
-    ) {
-      const varDeclParent = objExpr.parent.parent.parent;
-      if (
-        varDeclParent?.type === 'ExportNamedDeclaration' ||
-        varDeclParent?.type === 'ExportDefaultDeclaration'
-      ) {
+    let objExpr: TSESTree.Node | undefined = node.parent.parent;
+    while (objExpr?.type === 'ObjectExpression') {
+      // export default { method() {} } — ObjectExpression is direct child of ExportDefaultDeclaration
+      if (objExpr.parent?.type === 'ExportDefaultDeclaration') {
         return true;
       }
-      // indirect: const api = { ... }; export { api }
-      const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(
-        objExpr.parent,
-      );
       if (
-        ts.isVariableDeclaration(tsVarDecl) &&
-        ts.isIdentifier(tsVarDecl.name)
+        objExpr.parent?.type === 'VariableDeclarator' &&
+        objExpr.parent.parent?.type === 'VariableDeclaration'
       ) {
-        return isSymbolExported(tsVarDecl.name);
+        const varDeclParent = objExpr.parent.parent.parent;
+        if (
+          varDeclParent?.type === 'ExportNamedDeclaration' ||
+          varDeclParent?.type === 'ExportDefaultDeclaration'
+        ) {
+          return true;
+        }
+        // indirect: const api = { ... }; export { api }
+        const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(
+          objExpr.parent,
+        );
+        if (
+          ts.isVariableDeclaration(tsVarDecl) &&
+          ts.isIdentifier(tsVarDecl.name)
+        ) {
+          return isSymbolExported(tsVarDecl.name);
+        }
+        break;
+      }
+      // Climb one level: ObjectExpression → Property → (parent ObjectExpression)
+      if (objExpr.parent?.type === 'Property') {
+        objExpr = objExpr.parent.parent;
+      } else {
+        break;
       }
     }
   }

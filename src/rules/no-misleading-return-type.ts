@@ -1,16 +1,16 @@
-import type { TSESTree } from '@typescript-eslint/utils';
-import { ESLintUtils } from '@typescript-eslint/utils';
-import ts from 'typescript';
-import { createUnionType } from '../helpers/create-union-type.js';
-import { includesUndefined } from '../helpers/includes-undefined.js';
-import { isEscapeHatch } from '../helpers/is-escape-hatch.js';
-import { isExported } from '../helpers/is-exported.js';
-import { isFunctionLike } from '../helpers/is-function-like.js';
-import { truncateTypeString } from '../helpers/truncate-type-string.js';
+import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { ESLintUtils } from "@typescript-eslint/utils";
+import ts from "typescript";
+import { createUnionType } from "../helpers/create-union-type.js";
+import { includesUndefined } from "../helpers/includes-undefined.js";
+import { isEscapeHatch } from "../helpers/is-escape-hatch.js";
+import { isExported } from "../helpers/is-exported.js";
+import { isFunctionLike } from "../helpers/is-function-like.js";
+import { truncateTypeString } from "../helpers/truncate-type-string.js";
 
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
-    `https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/blob/main/docs/rules/${name}.md`,
+    `https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/blob/main/docs/rules/${name}.md`
 );
 
 type FunctionNode =
@@ -18,46 +18,46 @@ type FunctionNode =
   | TSESTree.FunctionExpression
   | TSESTree.ArrowFunctionExpression;
 
-type FixOption = 'suggestion' | 'autofix' | 'none';
+type FixOption = "suggestion" | "autofix" | "none";
 type Options = [{ fix: FixOption }];
 
-const PROMISE_NAMES = new Set(['Promise', 'PromiseLike']);
+const PROMISE_NAMES = new Set(["Promise", "PromiseLike"]);
 type MessageIds =
-  | 'misleadingReturnType'
-  | 'removeReturnType'
-  | 'narrowReturnType';
+  | "misleadingReturnType"
+  | "removeReturnType"
+  | "narrowReturnType";
 
 export const noMisleadingReturnType = createRule<Options, MessageIds>({
-  name: 'no-misleading-return-type',
+  name: "no-misleading-return-type",
   meta: {
-    type: 'suggestion',
+    type: "suggestion",
     docs: {
       description:
-        'Detect return type annotations that are misleadingly wider than what your implementation actually returns',
+        "Detect return type annotations that are misleadingly wider than what your implementation actually returns",
     },
-    fixable: 'code',
+    fixable: "code",
     hasSuggestions: true,
     messages: {
       misleadingReturnType:
-        'Return type `{{annotated}}` is wider than the inferred type `{{inferred}}`. Remove the annotation or narrow it.',
-      removeReturnType: 'Remove return type annotation',
-      narrowReturnType: 'Narrow return type to `{{inferred}}`',
+        "Return type `{{annotated}}` is wider than the inferred type `{{inferred}}`. Remove the annotation or narrow it.",
+      removeReturnType: "Remove return type annotation",
+      narrowReturnType: "Narrow return type to `{{inferred}}`",
     },
     schema: [
       {
-        type: 'object',
+        type: "object",
         properties: {
           fix: {
-            type: 'string',
-            enum: ['suggestion', 'autofix', 'none'],
-            default: 'suggestion',
+            type: "string",
+            enum: ["suggestion", "autofix", "none"],
+            default: "suggestion",
           },
         },
         additionalProperties: false,
       },
     ],
   },
-  defaultOptions: [{ fix: 'suggestion' }],
+  defaultOptions: [{ fix: "suggestion" }],
   create(context) {
     const parserServices = ESLintUtils.getParserServices(context);
     const checker = parserServices.program.getTypeChecker();
@@ -68,16 +68,16 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     // - Multi return: literal union from return expressions (matches TS union inference)
     function isAnnotatedWiderThanInferred(
       annotated: ts.Type,
-      inferred: ts.Type,
+      inferred: ts.Type
     ) {
       // isTypeAssignableTo is public API since TypeScript 5.0
       const inferredFitsInAnnotated = checker.isTypeAssignableTo(
         inferred,
-        annotated,
+        annotated
       );
       const annotatedFitsInInferred = checker.isTypeAssignableTo(
         annotated,
-        inferred,
+        inferred
       );
       // Annotated is wider: inferred fits into annotated, but not vice versa
       // e.g. string (annotated) vs "idle" (inferred): "idle" → string ✓, string → "idle" ✗
@@ -156,8 +156,8 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
 
       if (
         node.parent != null &&
-        node.parent.type === 'MethodDefinition' &&
-        (node.parent.kind === 'get' || node.parent.kind === 'set')
+        node.parent.type === "MethodDefinition" &&
+        (node.parent.kind === "get" || node.parent.kind === "set")
       ) {
         // getter/setter — v1 skip
         // TODO(v2): Getters could be compared if we also inspect the setter's
@@ -184,12 +184,12 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
 
       // Phase 3: annotated type resolution
       const tsReturnTypeNode = parserServices.esTreeNodeToTSNodeMap.get(
-        node.returnType.typeAnnotation,
+        node.returnType.typeAnnotation
       );
-      // returnType.typeAnnotation always maps to a ts.TypeNode — safe cast
-      const annotatedType = checker.getTypeFromTypeNode(
-        tsReturnTypeNode as ts.TypeNode,
-      );
+      if (!ts.isTypeNode(tsReturnTypeNode)) {
+        return;
+      }
+      const annotatedType = checker.getTypeFromTypeNode(tsReturnTypeNode);
       if (isEscapeHatch(annotatedType)) {
         return;
       }
@@ -201,22 +201,22 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       let inferredType: ts.Type;
       try {
         if (
-          node.type === 'ArrowFunctionExpression' &&
+          node.type === "ArrowFunctionExpression" &&
           node.expression === true
         ) {
           // Concise body arrow: the body IS the expression.
           // Widen literal types to match TS return type inference,
           // unless `as const` assertion is present (preserves literals).
           const tsBody = parserServices.esTreeNodeToTSNodeMap.get(
-            node.body as TSESTree.Expression,
+            node.body as TSESTree.Expression
           );
           const rawType = checker.getTypeAtLocation(tsBody);
           const bodyExpr = node.body as TSESTree.Expression;
           const isConstAssertion =
-            bodyExpr.type === 'TSAsExpression' &&
-            bodyExpr.typeAnnotation.type === 'TSTypeReference' &&
-            bodyExpr.typeAnnotation.typeName.type === 'Identifier' &&
-            bodyExpr.typeAnnotation.typeName.name === 'const';
+            bodyExpr.type === "TSAsExpression" &&
+            bodyExpr.typeAnnotation.type === "TSTypeReference" &&
+            bodyExpr.typeAnnotation.typeName.type === "Identifier" &&
+            bodyExpr.typeAnnotation.typeName.name === "const";
           inferredType = isConstAssertion
             ? rawType
             : checker.getBaseTypeOfLiteralType(rawType);
@@ -283,7 +283,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           return;
         }
         const typeArgs = checker.getTypeArguments(
-          annotatedType as ts.TypeReference,
+          annotatedType as ts.TypeReference
         );
         if (!typeArgs || typeArgs.length === 0) {
           return;
@@ -298,12 +298,12 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         // (e.g., return someAsyncFn()). In async functions, returning a thenable
         // resolves to T, so compare inner types.
         if (
-          PROMISE_NAMES.has(inferredType.symbol?.name ?? '') &&
+          PROMISE_NAMES.has(inferredType.symbol?.name ?? "") &&
           inferredType.flags & ts.TypeFlags.Object &&
           (inferredType as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
         ) {
           const inferredArgs = checker.getTypeArguments(
-            inferredType as ts.TypeReference,
+            inferredType as ts.TypeReference
           );
           if (inferredArgs && inferredArgs.length > 0) {
             effectiveInferred = inferredArgs[0];
@@ -335,55 +335,84 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       // For async functions, re-wrap effectiveInferred using the original wrapper name
       // (Promise or PromiseLike) to preserve the user's intent.
       const inferredTypeString = node.async
-        ? `${annotatedType.symbol?.name ?? 'Promise'}<${checker.typeToString(effectiveInferred)}>`
+        ? `${annotatedType.symbol?.name ?? "Promise"}<${checker.typeToString(
+            effectiveInferred
+          )}>`
         : checker.typeToString(effectiveInferred);
 
-      const fixOption = context.options[0]?.fix ?? 'suggestion';
+      const fixOption = context.options[0]?.fix ?? "suggestion";
       // Check if removing this return type could break isolatedDeclarations.
       const fnIsExported = isExported(
         node,
         tsFunctionNode,
         checker,
-        parserServices,
+        parserServices
       );
       // autofix on exported functions could break isolatedDeclarations — fall back to suggestion
       const effectiveFix =
-        fixOption === 'autofix' && fnIsExported ? 'suggestion' : fixOption;
+        fixOption === "autofix" && fnIsExported ? "suggestion" : fixOption;
 
       const reportData = {
         annotated: truncateTypeString(checker.typeToString(annotatedType)),
         inferred: truncateTypeString(inferredTypeString),
       };
 
-      if (effectiveFix === 'autofix') {
+      // typeToString can produce unparseable strings (e.g. "..." truncation,
+      // internal names like "__type", or "typeof import(...)"). Skip narrow
+      // suggestion when the type string is unlikely to be valid TS syntax.
+      const isSafeTypeString = !/\.{3}(?!\.)|^__\w+|typeof import\(/.test(
+        inferredTypeString
+      );
+
+      if (effectiveFix === "autofix") {
         context.report({
           node: node.returnType,
-          messageId: 'misleadingReturnType',
+          messageId: "misleadingReturnType",
           data: reportData,
           fix: (fixer) => fixer.remove(node.returnType!),
         });
-      } else if (effectiveFix === 'suggestion') {
-        context.report({
-          node: node.returnType,
-          messageId: 'misleadingReturnType',
-          data: reportData,
-          suggest: [
-            {
-              messageId: 'removeReturnType',
-              fix: (fixer) => fixer.remove(node.returnType!),
-            },
-            {
-              messageId: 'narrowReturnType',
-              data: reportData,
-              fix: (fixer) =>
-                fixer.replaceText(node.returnType!, `: ${inferredTypeString}`),
-            },
-          ],
-        });
+      } else if (effectiveFix === "suggestion") {
+        const suggestions: {
+          messageId: MessageIds;
+          data?: Record<string, string>;
+          fix: (fixer: TSESLint.RuleFixer) => TSESLint.RuleFix;
+        }[] = [];
+        // Removing the return type on exported functions could break
+        // isolatedDeclarations — only offer narrow suggestion for those.
+        if (!fnIsExported) {
+          suggestions.push({
+            messageId: "removeReturnType",
+            fix: (fixer: TSESLint.RuleFixer) => fixer.remove(node.returnType!),
+          });
+        }
+        if (isSafeTypeString) {
+          suggestions.push({
+            messageId: "narrowReturnType",
+            data: reportData,
+            fix: (fixer: TSESLint.RuleFixer) =>
+              fixer.replaceText(node.returnType!, `: ${inferredTypeString}`),
+          });
+        }
+        // If no suggestions are available (exported + unsafe type string),
+        // fall back to report-only.
+        if (suggestions.length > 0) {
+          context.report({
+            node: node.returnType,
+            messageId: "misleadingReturnType",
+            data: reportData,
+            suggest: suggestions,
+          });
+        } else {
+          context.report({
+            node: node.returnType,
+            messageId: "misleadingReturnType",
+            data: reportData,
+          });
+        }
       } else {
         context.report({
           node: node.returnType,
-          messageId: 'misleadingReturnType',
+          messageId: "misleadingReturnType",
           data: reportData,
         });
       }
