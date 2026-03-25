@@ -14,7 +14,7 @@
 
 ### Patch Changes
 
-- Inject plugin `meta.version` at build time via tsdown `define` to keep it in sync with package.json automatically ([#24](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/24))
+- Read plugin `meta.version` from package.json via `createRequire` to keep it in sync automatically ([#24](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/24))
 
 ## 0.2.0
 
