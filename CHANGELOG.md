@@ -1,5 +1,15 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.3.0
+
+### Minor Changes
+
+- Align inferred type comparison with TypeScript's actual return type inference by widening single-return literal types via `getBaseTypeOfLiteralType`. Single literal returns (e.g. `(): string { return "idle" }`) no longer trigger warnings since TS infers `string`, not `"idle"`. Multi-return unions and `as const` objects are unchanged. ([#23](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/23))
+
+### Patch Changes
+
+- Inject plugin `meta.version` at build time via tsdown `define` to keep it in sync with package.json automatically ([#24](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/24))
+
 ## 0.2.0
 
 ### Minor Changes
