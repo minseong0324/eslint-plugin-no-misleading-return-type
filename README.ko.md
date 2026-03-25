@@ -1,6 +1,6 @@
 # eslint-plugin-no-misleading-return-type
 
-반환 타입 주석이 TypeScript의 추론 타입보다 덜 정확한 경우를 감지합니다.
+반환 타입 주석이 TypeScript의 추론 반환 타입보다 넓은 경우를 감지합니다.
 
 ## 이 규칙이 필요한 이유
 
@@ -105,6 +105,10 @@ function getErrorMessages() {
   } as const;
 }
 
+// 단일 리터럴 반환 — TS가 string으로 추론, 주석과 일치
+function getStatus(): string { return "idle"; }
+function getCode(): number { return 404; }
+
 // 주석이 추론과 일치
 function getStatus(): "idle" { return "idle"; }
 
@@ -114,6 +118,7 @@ function parse(s: string): any { return JSON.parse(s); }
 
 // 비동기 함수, 내부 타입 일치
 async function greet(): Promise<"hello"> { return "hello"; }
+async function greet(): Promise<string> { return "hello"; }  // TS가 단일 반환에 대해 string 추론
 ```
 
 ### 유효하지 않은 경우 (경고 발생)
@@ -127,17 +132,16 @@ function getErrorMessages(): Record<string, string> {
   } as const;
 }
 
-// 리터럴 타입이 넓어짐
-function getStatus(): string { return "idle"; }  // string > "idle"
-function getCode(): number { return 404; }       // number > 404
-
-// 비동기 함수, 넓은 Promise 내부 타입
-async function greet(): Promise<string> { return "hello"; }  // Promise<string> > Promise<"hello">
-
 // 여러 반환값, 유니온 확대
 function getStatus(loading: boolean): string {
   if (loading) return "loading";
   return "idle";                                 // 추론: "loading" | "idle", 주석: string
+}
+
+// 비동기 여러 반환값
+async function getStatus(x: boolean): Promise<string> {
+  if (x) return "a";
+  return "b";                                    // 추론: Promise<"a" | "b">, 주석: Promise<string>
 }
 ```
 
@@ -170,14 +174,17 @@ function getStatus(loading: boolean): string {
 
 | 케이스 | 이유 |
 |--------|------|
+| 단일 리터럴 반환값 | TypeScript가 단일 리터럴 반환을 넓힘 (예: `return "idle"` → `string`), 주석과 일치 |
 | 제네릭 함수 | 추론이 호출 지점에 의존 |
 | 제너레이터 함수 | 복잡한 이터레이터 타입 |
 | 게터 / 세터 | 접근자 의미론이 다름 |
 | `void`, `any`, `unknown`, `never` | 의도적인 이스케이프 해치 |
 | `Promise<void>` / `Promise<any>` | 의도적인 이스케이프 해치 |
 | `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
-| 재귀 함수 | 순환 타입 해석 |
-| 필수 string 프로퍼티가 있는 객체 리터럴 | TypeScript 컨텍스트 타입이 추론 전에 리터럴을 넓힘 |
+| 재귀 함수 및 타입 해석 엣지 케이스 | 순환 또는 복잡한 타입 해석 시 자동 건너뜀 |
+| `as const` 없는 객체 리터럴 (필수 string 프로퍼티) | 어노테이션의 컨텍스트 타입이 추론 전에 리터럴을 넓힘 — `as const` 객체는 우회하여 보고됨 |
+| enum 리터럴 반환 | enum 멤버 타입이 기본 타입으로 과도하게 넓혀질 수 있음 (예: `Status.Idle` → `string` instead of `Status`) |
+| `PromiseLike` / 커스텀 thenable | 표준 `Promise<T>`만 언래핑됨 |
 | 어노테이션에 `undefined` 또는 `void`가 포함되지만 추론 타입에는 없는 경우 | 암시적 undefined 반환 경로 휴리스틱 — 명시적 `return` 없는 코드 경로를 추적할 수 없음 |
 
 ## 의도적으로 넓은 타입이 필요한 경우
