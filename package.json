@@ -1,7 +1,7 @@
 {
   "name": "eslint-plugin-no-misleading-return-type",
   "version": "0.3.0",
-  "description": "ESLint rule to detect return type annotations that are less precise than TypeScript's inferred type",
+  "description": "ESLint rule to detect return type annotations that are wider than TypeScript's inferred return type",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.mjs",
@@ -60,8 +60,11 @@
     "type": "git",
     "url": "https://github.com/minseong0324/eslint-plugin-no-misleading-return-type"
   },
+  "dependencies": {
+    "@typescript-eslint/utils": "^8.0.0"
+  },
   "peerDependencies": {
-    "@typescript-eslint/utils": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
     "eslint": "^9.0.0 || ^10.0.0",
     "typescript": ">=5.0.0 <6.0.0"
   },
