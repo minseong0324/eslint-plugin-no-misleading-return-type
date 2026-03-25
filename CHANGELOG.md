@@ -1,5 +1,11 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.3.1
+
+### Patch Changes
+
+- Move `@typescript-eslint/utils` from peerDependencies to dependencies and add `@typescript-eslint/parser` to peerDependencies to align with ecosystem conventions (runtime import → dep, platform prerequisite → peer). No runtime behavior change — only affects consumer install behavior. ([#26](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/26))
+
 ## 0.3.0
 
 ### Minor Changes
