@@ -51,38 +51,34 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
     },
-  ],
-  invalid: [
     {
-      name: 'instance method widening',
+      name: 'single literal return: instance method matches widened',
       code: `
         class Foo {
           getKey(): string { return "foo"; }
         }
       `,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `
-        class Foo {
-          getKey() { return "foo"; }
-        }
-      `,
-            },
-          ],
-        },
-      ],
     },
     {
-      name: 'static method widening',
+      name: 'single literal return: static method matches widened',
       code: `
         class Foo {
           static getLabel(): string { return "bar"; }
         }
       `,
+    },
+  ],
+  invalid: [
+    {
+      name: 'multi-return instance method: string wider than "foo" | "bar"',
+      code: `
+        class Foo {
+          getKey(x: boolean): string {
+            if (x) return "foo";
+            return "bar";
+          }
+        }
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
@@ -91,7 +87,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         class Foo {
-          static getLabel() { return "bar"; }
+          getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
         }
       `,
             },

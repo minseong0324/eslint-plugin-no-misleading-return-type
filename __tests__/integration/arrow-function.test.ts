@@ -23,48 +23,40 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'void return',
       code: `const log = (): void => { console.log("hi"); };`,
     },
+    {
+      name: 'single literal return: concise body string matches widened',
+      code: `const getLabel = (): string => "label";`,
+    },
+    {
+      name: 'single literal return: block body string matches widened',
+      code: `const getLabel = (): string => { return "label"; };`,
+    },
+    {
+      name: 'single literal return: concise body number matches widened',
+      code: `const getCode = (): number => 404;`,
+    },
   ],
   invalid: [
     {
-      name: "concise body: 'label' annotated as string",
-      code: `const getLabel = (): string => "label";`,
+      name: 'multi-return block body: string wider than "a" | "b"',
+      code: `
+        const getLabel = (x: boolean): string => {
+          if (x) return "a";
+          return "b";
+        };
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
           suggestions: [
             {
               messageId: 'removeReturnType',
-              output: `const getLabel = () => "label";`,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: "block body: 'label' annotated as string",
-      code: `const getLabel = (): string => { return "label"; };`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `const getLabel = () => { return "label"; };`,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'number literal widening in concise body',
-      code: `const getCode = (): number => 404;`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `const getCode = () => 404;`,
+              output: `
+        const getLabel = (x: boolean) => {
+          if (x) return "a";
+          return "b";
+        };
+      `,
             },
           ],
         },

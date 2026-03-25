@@ -156,13 +156,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       // Without the isConstructorDeclaration guard in isFunctionLike, collectReturnTypes would
       // traverse into the constructor and collect Object.create(null) (type: any).
       // any contaminates the union → containsAny check → no warning (false negative).
-      // With the fix, constructor is blocked, outer infers "hello" → string > "hello" → warns.
+      // With the fix, constructor is blocked, outer infers "a" | "b" → string > "a" | "b" → warns.
+      // Uses multi-return to trigger the rule (single return would be widened to string).
       code: `
-        function outer(): string {
+        function outer(x: boolean): string {
           class Inner {
             constructor() { return Object.create(null); }
           }
-          return 'hello';
+          if (x) return 'a';
+          return 'b';
         }
       `,
       errors: [
@@ -172,11 +174,12 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'removeReturnType',
               output: `
-        function outer() {
+        function outer(x: boolean) {
           class Inner {
             constructor() { return Object.create(null); }
           }
-          return 'hello';
+          if (x) return 'a';
+          return 'b';
         }
       `,
             },
