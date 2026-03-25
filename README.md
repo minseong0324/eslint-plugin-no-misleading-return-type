@@ -150,6 +150,7 @@ async function getStatus(x: boolean): Promise<string> {
 | Option | Type | Default | Effect |
 |--------|------|---------|--------|
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | How to offer fixes |
+| `ignoreExported` | `boolean` | `false` | Skip exported functions entirely |
 
 **fix modes:**
 - `"suggestion"` — IDE inline suggestion to remove annotation (safe for exported functions)
@@ -168,6 +169,20 @@ async function getStatus(x: boolean): Promise<string> {
     ],
   },
 }
+```
+
+### Presets
+
+| Preset | Description |
+|--------|-------------|
+| `recommended` | Default — warns on all functions |
+| `recommended-app` | Same as recommended (`ignoreExported: false`) |
+| `recommended-library` | Skips exported functions (`ignoreExported: true`) |
+
+```ts
+// eslint.config.ts — for libraries
+import noMisleadingReturnType from 'eslint-plugin-no-misleading-return-type';
+export default [noMisleadingReturnType.configs['recommended-library']];
 ```
 
 ## What is not checked

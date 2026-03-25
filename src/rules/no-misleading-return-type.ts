@@ -17,7 +17,7 @@ type FunctionNode =
   | TSESTree.ArrowFunctionExpression;
 
 type FixOption = 'suggestion' | 'autofix' | 'none';
-type Options = [{ fix: FixOption }];
+type Options = [{ fix: FixOption; ignoreExported: boolean }];
 type MessageIds = 'misleadingReturnType' | 'removeReturnType';
 
 export const noMisleadingReturnType = createRule<Options, MessageIds>({
@@ -44,12 +44,16 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             enum: ['suggestion', 'autofix', 'none'],
             default: 'suggestion',
           },
+          ignoreExported: {
+            type: 'boolean',
+            default: false,
+          },
         },
         additionalProperties: false,
       },
     ],
   },
-  defaultOptions: [{ fix: 'suggestion' }],
+  defaultOptions: [{ fix: 'suggestion', ignoreExported: false }],
   create(context) {
     const parserServices = ESLintUtils.getParserServices(context);
     const checker = parserServices.program.getTypeChecker();
@@ -469,6 +473,11 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
 
         return false;
       })();
+      const ignoreExported = context.options[0]?.ignoreExported ?? false;
+      if (ignoreExported && isExported) {
+        return;
+      }
+
       // autofix on exported functions could break isolatedDeclarations — fall back to suggestion
       const effectiveFix =
         fixOption === 'autofix' && isExported ? 'suggestion' : fixOption;

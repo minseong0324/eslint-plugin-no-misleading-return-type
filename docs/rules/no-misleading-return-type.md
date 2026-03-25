@@ -81,10 +81,16 @@ async function greet(): Promise<string> {
 ```ts
 type Options = {
   fix?: 'suggestion' | 'autofix' | 'none'; // default: 'suggestion'
+  ignoreExported?: boolean; // default: false
 };
 ```
 
-| Option | Effect |
+| Option | Type | Default | Effect |
+|--------|------|---------|--------|
+| `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | How to offer fixes |
+| `ignoreExported` | `boolean` | `false` | Skip exported functions entirely |
+
+| Fix Option | Effect |
 |--------|--------|
 | `"suggestion"` | IDE inline suggestion to remove the annotation (default) |
 | `"autofix"` | Auto-removes the annotation on `--fix`; falls back to suggestion for exported functions |
@@ -97,6 +103,20 @@ type Options = {
     'no-misleading-return-type/no-misleading-return-type': ['warn', { fix: 'autofix' }],
   },
 }
+```
+
+## Presets
+
+| Preset | Description |
+|--------|-------------|
+| `recommended` | Default — warns on all functions |
+| `recommended-app` | Same as recommended (`ignoreExported: false`) |
+| `recommended-library` | Skips exported functions (`ignoreExported: true`) |
+
+```ts
+// eslint.config.ts — for libraries
+import noMisleadingReturnType from 'eslint-plugin-no-misleading-return-type';
+export default [noMisleadingReturnType.configs['recommended-library']];
 ```
 
 ## When to disable

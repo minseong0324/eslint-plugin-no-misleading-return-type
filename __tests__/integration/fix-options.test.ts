@@ -2,8 +2,56 @@ import { noMisleadingReturnType } from '../../src/rules/no-misleading-return-typ
 import { ruleTester } from './_setup.js';
 
 ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
-  valid: [],
+  valid: [
+    {
+      name: 'ignoreExported: true — exported function is skipped',
+      options: [{ fix: 'suggestion', ignoreExported: true }],
+      code: `
+        export function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+    },
+    {
+      name: 'ignoreExported: true — indirectly exported function is skipped',
+      options: [{ fix: 'suggestion', ignoreExported: true }],
+      code: `
+        function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+        export { foo };
+      `,
+    },
+  ],
   invalid: [
+    {
+      name: 'ignoreExported: true — non-exported function still reports',
+      options: [{ fix: 'suggestion', ignoreExported: true }],
+      code: `
+        function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        function foo(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
+          ],
+        },
+      ],
+    },
     {
       name: 'fix: suggestion (default) — provides suggestion, no autofix',
       code: `

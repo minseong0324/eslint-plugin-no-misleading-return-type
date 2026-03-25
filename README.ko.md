@@ -150,6 +150,7 @@ async function getStatus(x: boolean): Promise<string> {
 | 옵션 | 타입 | 기본값 | 효과 |
 |------|------|--------|------|
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | 수정 제공 방식 |
+| `ignoreExported` | `boolean` | `false` | 내보낸 함수를 완전히 건너뜀 |
 
 **fix 모드:**
 - `"suggestion"` — IDE 인라인 제안으로 주석 제거 (내보낸 함수에 안전)
@@ -168,6 +169,20 @@ async function getStatus(x: boolean): Promise<string> {
     ],
   },
 }
+```
+
+### 프리셋
+
+| 프리셋 | 설명 |
+|--------|------|
+| `recommended` | 기본값 — 모든 함수에 대해 경고 |
+| `recommended-app` | recommended와 동일 (`ignoreExported: false`) |
+| `recommended-library` | 내보낸 함수를 건너뜀 (`ignoreExported: true`) |
+
+```ts
+// eslint.config.ts — 라이브러리용
+import noMisleadingReturnType from 'eslint-plugin-no-misleading-return-type';
+export default [noMisleadingReturnType.configs['recommended-library']];
 ```
 
 ## 검사하지 않는 케이스

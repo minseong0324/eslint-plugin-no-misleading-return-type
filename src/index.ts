@@ -20,6 +20,24 @@ export const configs = {
       'no-misleading-return-type/no-misleading-return-type': 'warn' as const,
     },
   },
+  'recommended-app': {
+    plugins: { 'no-misleading-return-type': plugin },
+    rules: {
+      'no-misleading-return-type/no-misleading-return-type': [
+        'warn' as const,
+        { ignoreExported: false },
+      ],
+    },
+  },
+  'recommended-library': {
+    plugins: { 'no-misleading-return-type': plugin },
+    rules: {
+      'no-misleading-return-type/no-misleading-return-type': [
+        'warn' as const,
+        { ignoreExported: true },
+      ],
+    },
+  },
 };
 
 export default { ...plugin, configs };
