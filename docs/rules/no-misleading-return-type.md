@@ -81,6 +81,7 @@ async function greet(): Promise<string> {
 ```ts
 type Options = {
   fix?: 'suggestion' | 'autofix' | 'none'; // default: 'suggestion'
+  mode?: 'approximate' | 'precise'; // default: 'approximate'
 };
 ```
 
@@ -89,6 +90,13 @@ type Options = {
 | `"suggestion"` | IDE inline suggestion to remove the annotation (default) |
 | `"autofix"` | Auto-removes the annotation on `--fix`; falls back to suggestion for exported functions |
 | `"none"` | Report only, no fix offered |
+
+**mode:**
+
+| Option | Effect |
+|--------|--------|
+| `"approximate"` | Fast heuristic-based comparison (default) |
+| `"precise"` | Creates a shadow TypeScript program with the annotation removed to get the exact inferred type (slower but more accurate) |
 
 ```ts
 // eslint.config.ts

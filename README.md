@@ -150,11 +150,16 @@ async function getStatus(x: boolean): Promise<string> {
 | Option | Type | Default | Effect |
 |--------|------|---------|--------|
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | How to offer fixes |
+| `mode` | `"approximate" \| "precise"` | `"approximate"` | Type comparison strategy |
 
 **fix modes:**
 - `"suggestion"` — IDE inline suggestion to remove annotation (safe for exported functions)
 - `"autofix"` — Auto-removes annotation (falls back to suggestion for exported functions with `isolatedDeclarations`)
 - `"none"` — Report without any fix
+
+**mode:**
+- `"approximate"` — Fast heuristic-based comparison (default, recommended for most projects)
+- `"precise"` — Creates a shadow TypeScript program with the return type annotation removed to get the exact inferred type (slower but more accurate)
 
 **Example:**
 

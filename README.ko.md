@@ -150,11 +150,16 @@ async function getStatus(x: boolean): Promise<string> {
 | 옵션 | 타입 | 기본값 | 효과 |
 |------|------|--------|------|
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | 수정 제공 방식 |
+| `mode` | `"approximate" \| "precise"` | `"approximate"` | 타입 비교 전략 |
 
 **fix 모드:**
 - `"suggestion"` — IDE 인라인 제안으로 주석 제거 (내보낸 함수에 안전)
 - `"autofix"` — 주석 자동 제거 (`isolatedDeclarations`가 있는 내보낸 함수는 제안으로 폴백)
 - `"none"` — 수정 없이 보고만 함
+
+**mode 모드:**
+- `"approximate"` — 빠른 휴리스틱 기반 비교 (기본값, 대부분의 프로젝트에 권장)
+- `"precise"` — 반환 타입 주석을 제거한 섀도우 TypeScript 프로그램을 생성하여 정확한 추론 타입을 가져옴 (느리지만 더 정확)
 
 **예제:**
 

@@ -4,6 +4,7 @@ import ts from 'typescript';
 import { includesUndefined } from '../helpers/includes-undefined.js';
 import { isEscapeHatch } from '../helpers/is-escape-hatch.js';
 import { isFunctionLike } from '../helpers/is-function-like.js';
+import { inferReturnTypeWithoutAnnotation } from '../helpers/precise-infer.js';
 import { truncateTypeString } from '../helpers/truncate-type-string.js';
 
 const createRule = ESLintUtils.RuleCreator(
@@ -17,7 +18,8 @@ type FunctionNode =
   | TSESTree.ArrowFunctionExpression;
 
 type FixOption = 'suggestion' | 'autofix' | 'none';
-type Options = [{ fix: FixOption }];
+type ModeOption = 'approximate' | 'precise';
+type Options = [{ fix: FixOption; mode: ModeOption }];
 type MessageIds = 'misleadingReturnType' | 'removeReturnType';
 
 export const noMisleadingReturnType = createRule<Options, MessageIds>({
@@ -44,12 +46,17 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             enum: ['suggestion', 'autofix', 'none'],
             default: 'suggestion',
           },
+          mode: {
+            type: 'string',
+            enum: ['approximate', 'precise'],
+            default: 'approximate',
+          },
         },
         additionalProperties: false,
       },
     ],
   },
-  defaultOptions: [{ fix: 'suggestion' }],
+  defaultOptions: [{ fix: 'suggestion', mode: 'approximate' }],
   create(context) {
     const parserServices = ESLintUtils.getParserServices(context);
     const checker = parserServices.program.getTypeChecker();
@@ -260,6 +267,23 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       if (containsAny(inferredType)) {
         return;
       } // any-contaminated inference is unreliable
+
+      // Phase 4b: precise mode — use shadow program for exact inference
+      const mode = context.options[0]?.mode ?? 'approximate';
+      if (mode === 'precise') {
+        const preciseTypeStr = inferReturnTypeWithoutAnnotation(
+          parserServices.program,
+          tsFunctionNode.getSourceFile(),
+          tsFunctionNode as ts.SignatureDeclaration,
+        );
+        if (preciseTypeStr) {
+          const annotatedStr = checker.typeToString(annotatedType);
+          if (annotatedStr === preciseTypeStr) {
+            return; // Annotation matches actual TS inference — not misleading
+          }
+          // Otherwise continue with normal comparison to determine if wider
+        }
+      }
 
       // Phase 5: comparison
       // effectiveInferred is the type to compare against annotated.
