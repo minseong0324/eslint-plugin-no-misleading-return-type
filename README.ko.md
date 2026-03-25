@@ -183,8 +183,8 @@ async function getStatus(x: boolean): Promise<string> {
 | `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
 | 재귀 함수 및 타입 체커 예외 | 타입 해석 실패 시 (순환 타입, 체커 오류 등) lint 실행 중단 대신 해당 함수를 건너뜀 |
 | `as const` 없는 객체 리터럴 (필수 string 프로퍼티) | 어노테이션의 컨텍스트 타입이 추론 전에 리터럴을 넓힘 — `as const` 객체는 우회하여 보고됨 |
-| enum 리터럴 반환 | enum 멤버 타입이 기본 타입으로 과도하게 넓혀질 수 있음 (예: `Status.Idle` → `string` instead of `Status`) |
-| `PromiseLike` / 커스텀 thenable | 표준 `Promise<T>`만 언래핑됨 |
+| enum 리터럴 반환 | enum 멤버 타입이 기본 타입으로 과도하게 넓혀질 수 있음 (예: `Status.Idle` → `Status` 대신 `string`) |
+| 커스텀 thenable | `Promise<T>`와 `PromiseLike<T>`만 언래핑됨 |
 | 어노테이션에 `undefined` 또는 `void`가 포함되지만 추론 타입에는 없는 경우 | 암시적 undefined 반환 경로 휴리스틱 — 명시적 `return` 없는 코드 경로를 추적할 수 없음 |
 
 ## 의도적으로 넓은 타입이 필요한 경우

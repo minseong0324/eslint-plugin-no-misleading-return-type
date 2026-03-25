@@ -76,29 +76,49 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       return inferredFitsInAnnotated && !annotatedFitsInInferred;
     }
 
-    function containsAny(type: ts.Type): boolean {
+    function containsAny(type: ts.Type, visited = new Set<ts.Type>()): boolean {
+      if (visited.has(type)) {
+        return false; // cycle guard for recursive types
+      }
+      visited.add(type);
+
       if (type.flags & ts.TypeFlags.Any) {
         return true;
       }
 
-      if (type.isUnion()) {
-        return type.types.some(containsAny);
+      if (type.isUnion() || type.isIntersection()) {
+        return type.types.some((t) => containsAny(t, visited));
       }
 
-      if (type.isIntersection()) {
-        return type.types.some(containsAny);
-      }
-
-      // Guard: only call getTypeArguments on actual TypeReference types (e.g. Promise<T>, Array<T>)
-      // Non-Reference ObjectTypes (plain objects, interfaces without type args) would crash without this guard
+      // TypeReference: Promise<T>, Array<T>, Map<K,V>, etc.
       if (
         type.flags & ts.TypeFlags.Object &&
         (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
       ) {
         return checker
           .getTypeArguments(type as ts.TypeReference)
-          .some(containsAny);
+          .some((t) => containsAny(t, visited));
       }
+
+      // Object properties: { name: any }, { nested: { deep: any } }
+      if (type.flags & ts.TypeFlags.Object) {
+        for (const prop of type.getProperties()) {
+          const propType = checker.getTypeOfSymbol(prop);
+          if (containsAny(propType, visited)) {
+            return true;
+          }
+        }
+        // Index signatures: { [key: string]: any }
+        const stringIndex = type.getStringIndexType();
+        if (stringIndex && containsAny(stringIndex, visited)) {
+          return true;
+        }
+        const numberIndex = type.getNumberIndexType();
+        if (numberIndex && containsAny(numberIndex, visited)) {
+          return true;
+        }
+      }
+
       return false;
     }
 
@@ -246,9 +266,14 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       // For async functions this may be unwrapped from Promise<T>.
       let effectiveInferred = inferredType;
 
+      const PROMISE_NAMES = new Set(['Promise', 'PromiseLike']);
+
       if (node.async) {
-        // async functions: unwrap Promise<T> from annotated side
-        if (!annotatedType.symbol || annotatedType.symbol.name !== 'Promise') {
+        // async functions: unwrap Promise<T> or PromiseLike<T> from annotated side
+        if (
+          !annotatedType.symbol ||
+          !PROMISE_NAMES.has(annotatedType.symbol.name)
+        ) {
           return;
         }
         const typeArgs = checker.getTypeArguments(

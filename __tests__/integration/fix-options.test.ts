@@ -412,6 +412,34 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       ],
     },
 
+    // ── Export default: anonymous function / arrow ────────────
+    {
+      name: 'fix: autofix on export default function (anonymous) — falls back to suggestion',
+      options: [{ fix: 'autofix' }],
+      code: `
+        export default function(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        export default function(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
+          ],
+        },
+      ],
+    },
+
     // ── Non-exported: autofix still applies ───────────────────
     {
       name: 'fix: autofix on non-exported function — autofix applies normally',

@@ -138,6 +138,14 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       `,
     },
     {
+      name: 'async Promise<string | void> — implicit undefined heuristic skip',
+      code: `
+        async function maybePrint(flag: boolean): Promise<string | void> {
+          if (flag) return "hello";
+        }
+      `,
+    },
+    {
       name: 'string | void annotation with implicit void return path → skip (includesUndefined covers void)',
       // Without the Void flag in includesUndefined, this would be a false positive:
       // annotated = string | void, inferred = string (only the explicit return path),
