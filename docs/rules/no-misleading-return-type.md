@@ -41,7 +41,7 @@ function getErrorMessages() {
   } as const;
 }
 
-// Single literal return — TS infers string, annotation matches
+// Single literal return — widened by this rule to approximate TS return type inference
 function getStatus(): string {
   return 'idle';
 }
@@ -72,7 +72,7 @@ async function greet(): Promise<'hello'> {
   return 'hello';
 }
 async function greet(): Promise<string> {
-  return 'hello'; // TS infers string for single return
+  return 'hello'; // single return — widened to string
 }
 ```
 
@@ -116,15 +116,25 @@ function getStatus(loading: boolean): string {
 
 | Case | Reason |
 |------|--------|
-| Single-return literal values | TypeScript widens lone literal returns (e.g. `return "idle"` → `string`), so annotation matches inferred |
+| Single-return literal values | Widened by this rule to their base type (e.g. `"idle"` → `string`) to approximate TypeScript's return type inference |
 | Generic functions | Inference depends on call-site |
 | Generator functions | Complex iterator typing |
 | Getters / setters | Accessor semantics differ |
 | `void`, `any`, `unknown`, `never` annotations | Intentional escape hatches |
 | `Promise<void>` / `Promise<any>` | Intentional escape hatches |
 | Functions with no `return` statement | Void functions — nothing to compare |
-| Recursive functions and type-resolution edge cases | Circular or complex type resolution may silently skip |
+| Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
 | Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
 | Enum literal returns | Enum member types may be over-widened to their base type (e.g. `Status.Idle` → `string` instead of `Status`) |
 | `PromiseLike` / custom thenables | Only standard `Promise<T>` is unwrapped |
 | `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
+
+## How the rule compares types
+
+| Pattern | How inferred type is derived | Example |
+|---------|------------------------------|---------|
+| Single return / concise arrow | Widened to base type via [`getBaseTypeOfLiteralType`](https://github.com/microsoft/TypeScript/blob/main/src/compiler/checker.ts) (public TS 5.0+ API) | `return "idle"` → compared as `string` |
+| Multiple returns | Literal union from return expressions | `return "a"; return "b"` → compared as `"a" \| "b"` |
+| Async function | Standard `Promise<T>` unwrapped; inner type compared | `Promise<string>` vs inner `"a" \| "b"` |
+| `as const` object | Preserved as-is (not affected by widening) | `{ A: "a" } as const` stays readonly |
+| Plain object without `as const` | Contextual typing may widen before comparison — often skipped | `{ type: "idle" }` may become `{ type: string }` |

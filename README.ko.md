@@ -27,7 +27,7 @@ function getErrorMessages() {
 }
 ```
 
-이 규칙은 주석 타입이 추론 타입보다 넓은 경우를 감지하고 보고하여, 불필요한 주석을 제거하고 구현이 제공하는 정확성을 보존하도록 도와줍니다.
+이 규칙은 주석 타입이 추론 타입보다 넓은 경우를 감지하고 보고하여, 오해를 유발하는 넓은 반환 타입 주석을 감지하고, 구현이 제공하는 정확성을 보존하도록 도와줍니다.
 
 ## 설치
 
@@ -78,8 +78,8 @@ export default [
 ```
 
 **타입 정보가 필요합니다.** 다음 중 하나를 사용하세요:
-- `projectService: { allowDefaultProject: [...] }` (ESLint 9+, 권장)
-- `project: "./tsconfig.json"` (기존 설정)
+- `projectService: { allowDefaultProject: [...] }` (권장 파서 설정)
+- `project: "./tsconfig.json"` (기존 tsconfig 기반 설정)
 
 > `TypeError: Cannot read properties of undefined (reading 'program')` 오류가 발생하면
 > 타입 정보가 설정되지 않은 것입니다. `parserOptions`를 확인하세요.
@@ -105,7 +105,7 @@ function getErrorMessages() {
   } as const;
 }
 
-// 단일 리터럴 반환 — TS가 string으로 추론, 주석과 일치
+// 단일 리터럴 반환 — 이 룰이 TS 반환 타입 추론을 근사하여 넓힘
 function getStatus(): string { return "idle"; }
 function getCode(): number { return 404; }
 
@@ -118,7 +118,7 @@ function parse(s: string): any { return JSON.parse(s); }
 
 // 비동기 함수, 내부 타입 일치
 async function greet(): Promise<"hello"> { return "hello"; }
-async function greet(): Promise<string> { return "hello"; }  // TS가 단일 반환에 대해 string 추론
+async function greet(): Promise<string> { return "hello"; }  // 단일 반환 — string으로 넓힘
 ```
 
 ### 유효하지 않은 경우 (경고 발생)
@@ -174,14 +174,14 @@ async function getStatus(x: boolean): Promise<string> {
 
 | 케이스 | 이유 |
 |--------|------|
-| 단일 리터럴 반환값 | TypeScript가 단일 리터럴 반환을 넓힘 (예: `return "idle"` → `string`), 주석과 일치 |
+| 단일 리터럴 반환값 | 이 룰이 기본 타입으로 넓힘 (예: `"idle"` → `string`) — TypeScript의 반환 타입 추론을 근사 |
 | 제네릭 함수 | 추론이 호출 지점에 의존 |
 | 제너레이터 함수 | 복잡한 이터레이터 타입 |
 | 게터 / 세터 | 접근자 의미론이 다름 |
 | `void`, `any`, `unknown`, `never` | 의도적인 이스케이프 해치 |
 | `Promise<void>` / `Promise<any>` | 의도적인 이스케이프 해치 |
 | `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
-| 재귀 함수 및 타입 해석 엣지 케이스 | 순환 또는 복잡한 타입 해석 시 자동 건너뜀 |
+| 재귀 함수 및 타입 체커 예외 | 타입 해석 실패 시 (순환 타입, 체커 오류 등) lint 실행 중단 대신 해당 함수를 건너뜀 |
 | `as const` 없는 객체 리터럴 (필수 string 프로퍼티) | 어노테이션의 컨텍스트 타입이 추론 전에 리터럴을 넓힘 — `as const` 객체는 우회하여 보고됨 |
 | enum 리터럴 반환 | enum 멤버 타입이 기본 타입으로 과도하게 넓혀질 수 있음 (예: `Status.Idle` → `string` instead of `Status`) |
 | `PromiseLike` / 커스텀 thenable | 표준 `Promise<T>`만 언래핑됨 |

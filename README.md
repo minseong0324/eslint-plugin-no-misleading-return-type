@@ -27,7 +27,7 @@ function getErrorMessages() {
 }
 ```
 
-This rule reports when an annotated return type is wider than what TypeScript would infer, helping you remove unnecessary annotations and preserve the precision your implementation provides.
+This rule reports when an annotated return type is wider than what TypeScript would infer, helping you detect misleadingly wide return annotations and preserve the precision your implementation provides.
 
 ## Installation
 
@@ -78,8 +78,8 @@ export default [
 ```
 
 **Type information is required.** Use either:
-- `projectService: { allowDefaultProject: [...] }` (ESLint 9+, recommended)
-- `project: "./tsconfig.json"` (classic setup)
+- `projectService: { allowDefaultProject: [...] }` (recommended parser setup)
+- `project: "./tsconfig.json"` (classic tsconfig-based setup)
 
 > If you see `TypeError: Cannot read properties of undefined (reading 'program')`,
 > type information is not configured. Check your `parserOptions`.
@@ -105,7 +105,7 @@ function getErrorMessages() {
   } as const;
 }
 
-// Single literal return — TS infers string, annotation matches
+// Single literal return — widened by this rule to approximate TS return type inference
 function getStatus(): string { return "idle"; }
 function getCode(): number { return 404; }
 
@@ -118,7 +118,7 @@ function parse(s: string): any { return JSON.parse(s); }
 
 // Async with matching inner type
 async function greet(): Promise<"hello"> { return "hello"; }
-async function greet(): Promise<string> { return "hello"; }  // TS infers string for single return
+async function greet(): Promise<string> { return "hello"; }  // single return — widened to string
 ```
 
 ### Invalid (warning)
@@ -174,14 +174,14 @@ async function getStatus(x: boolean): Promise<string> {
 
 | Case | Reason |
 |------|--------|
-| Single-return literal values | TypeScript widens lone literal returns (e.g. `return "idle"` → `string`), so annotation matches inferred |
+| Single-return literal values | Widened by this rule to their base type (e.g. `"idle"` → `string`) to approximate TypeScript's return type inference |
 | Generic functions | Inference depends on call-site |
 | Generator functions | Complex iterator typing |
 | Getters / setters | Accessor semantics differ |
 | `void`, `any`, `unknown`, `never` | Intentional escape hatches |
 | `Promise<void>` / `Promise<any>` | Intentional escape hatches |
 | Functions with no `return` | Void functions — nothing to compare |
-| Recursive functions and type-resolution edge cases | Circular or complex type resolution may silently skip |
+| Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
 | Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
 | Enum literal returns | Enum member types may be over-widened to their base type (e.g. `Status.Idle` → `string` instead of `Status`) |
 | `PromiseLike` / custom thenables | Only standard `Promise<T>` is unwrapped |
