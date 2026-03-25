@@ -25,6 +25,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function foo(x: boolean): "a" | "b" {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
           ],
         },
       ],
@@ -68,6 +77,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        export function foo(x: boolean): "a" | "b" {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
           ],
         },
       ],
@@ -94,6 +112,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         };
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        export const getStatus = function(x: boolean): "idle" | "loading" {
+          if (x) return "idle";
+          return "loading";
+        };
+      `,
+            },
           ],
         },
       ],
@@ -115,6 +142,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         export const getStatus = (x: boolean) => {
+          if (x) return "idle";
+          return "loading";
+        };
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        export const getStatus = (x: boolean): "idle" | "loading" => {
           if (x) return "idle";
           return "loading";
         };
@@ -161,6 +197,16 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         export { getStatus };
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        const getStatus = (x: boolean): "idle" | "loading" => {
+          if (x) return "idle";
+          return "loading";
+        };
+        export { getStatus };
+      `,
+            },
           ],
         },
       ],
@@ -183,6 +229,16 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         const getStatus = function(x: boolean) {
+          if (x) return "idle";
+          return "loading";
+        };
+        export { getStatus };
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        const getStatus = function(x: boolean): "idle" | "loading" {
           if (x) return "idle";
           return "loading";
         };
@@ -221,6 +277,17 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        export class Foo {
+          getKey(x: boolean): "foo" | "bar" {
+            if (x) return "foo";
+            return "bar";
+          }
+        }
+      `,
+            },
           ],
         },
       ],
@@ -245,6 +312,17 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               output: `
         export default class {
           getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        export default class {
+          getKey(x: boolean): "foo" | "bar" {
             if (x) return "foo";
             return "bar";
           }
@@ -285,6 +363,18 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         export { Foo };
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        class Foo {
+          getKey(x: boolean): "foo" | "bar" {
+            if (x) return "foo";
+            return "bar";
+          }
+        }
+        export { Foo };
+      `,
+            },
           ],
         },
       ],
@@ -311,6 +401,17 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               output: `
         export const Foo = class {
           getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
+        };
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        export const Foo = class {
+          getKey(x: boolean): "foo" | "bar" {
             if (x) return "foo";
             return "bar";
           }
@@ -349,6 +450,18 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         export { Foo };
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        const Foo = class {
+          getKey(x: boolean): "foo" | "bar" {
+            if (x) return "foo";
+            return "bar";
+          }
+        };
+        export { Foo };
+      `,
+            },
           ],
         },
       ],
@@ -373,6 +486,16 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         function getStatus(x: boolean) {
+          if (x) return "idle";
+          return "loading";
+        }
+        export { getStatus as status };
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getStatus(x: boolean): "idle" | "loading" {
           if (x) return "idle";
           return "loading";
         }
@@ -407,6 +530,16 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         export { getStatus as status };
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        const getStatus = (x: boolean): "idle" | "loading" => {
+          if (x) return "idle";
+          return "loading";
+        };
+        export { getStatus as status };
+      `,
+            },
           ],
         },
       ],
@@ -430,6 +563,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         export default function(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        export default function(x: boolean): "a" | "b" {
           if (x) return "a";
           return "b";
         }

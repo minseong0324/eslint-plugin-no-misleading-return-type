@@ -152,7 +152,7 @@ async function getStatus(x: boolean): Promise<string> {
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | 수정 제공 방식 |
 
 **fix 모드:**
-- `"suggestion"` — IDE 인라인 제안으로 주석 제거 (내보낸 함수에 안전)
+- `"suggestion"` — IDE 인라인 제안: (1) 주석 제거, (2) 추론 타입으로 주석 좁히기
 - `"autofix"` — 주석 자동 제거 (`isolatedDeclarations`가 있는 내보낸 함수는 제안으로 폴백)
 - `"none"` — 수정 없이 보고만 함
 

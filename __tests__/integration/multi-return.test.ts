@@ -43,6 +43,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getStatus(loading: boolean): "loading" | "idle" {
+          if (loading) return "loading";
+          return "idle";
+        }
+      `,
+            },
           ],
         },
       ],
@@ -68,6 +77,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getErrorCode(serverError: boolean): 500 | 404 {
+          if (serverError) return 500;
+          return 404;
+        }
+      `,
+            },
           ],
         },
       ],
@@ -88,6 +106,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         function getData(flag: boolean) {
+          if (flag) return { a: "hello" };
+          return { b: 42 };
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getData(flag: boolean): { a: string; } | { b: number; } {
           if (flag) return { a: "hello" };
           return { b: 42 };
         }

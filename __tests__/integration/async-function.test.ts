@@ -89,6 +89,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        async function getStatus(x: boolean): Promise<"a" | "b"> {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
           ],
         },
       ],
@@ -114,6 +123,13 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         async function outer() { return inner(); }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        async function inner(): Promise<"ok"> { return "ok"; }
+        async function outer(): Promise<"ok"> { return inner(); }
+      `,
+            },
           ],
         },
       ],
@@ -134,6 +150,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         async function f(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        async function f(x: boolean): Promise<"a" | "b"> {
           if (x) return "a";
           return "b";
         }
@@ -163,6 +188,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         async function greet(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        async function greet(x: boolean): Promise<"a" | "b"> {
           if (x) return "a";
           return "b";
         }

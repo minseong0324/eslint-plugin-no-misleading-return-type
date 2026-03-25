@@ -65,6 +65,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function f(x: boolean): "idle" | "loading" {
+          if (x) return "idle";
+          return "loading";
+        }
+      `,
+            },
           ],
         },
       ],
@@ -85,6 +94,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         function f(x: boolean) {
+          if (x) return 404;
+          return 500;
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function f(x: boolean): 404 | 500 {
           if (x) return 404;
           return 500;
         }
@@ -111,6 +129,14 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         function f() {
+          return { A: "a" } as const;
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function f(): { readonly A: "a"; } {
           return { A: "a" } as const;
         }
       `,
@@ -142,6 +168,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        async function f(x: boolean): Promise<"a" | "b"> {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
           ],
         },
       ],
@@ -158,6 +193,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'removeReturnType',
               output: `function f() { return { retry: true }; }`,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `function f(): { retry: boolean; } { return { retry: true }; }`,
             },
           ],
         },

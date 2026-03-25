@@ -58,6 +58,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         };
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        const getLabel = (x: boolean): "a" | "b" => {
+          if (x) return "a";
+          return "b";
+        };
+      `,
+            },
           ],
         },
       ],
