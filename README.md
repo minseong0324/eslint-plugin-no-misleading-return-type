@@ -1,6 +1,6 @@
 # eslint-plugin-no-misleading-return-type
 
-Detect return type annotations that are wider than TypeScript's inferred return type.
+Detect return type annotations that are misleadingly wider than what your implementation actually returns.
 
 ## Why this rule?
 
@@ -169,6 +169,16 @@ async function getStatus(x: boolean): Promise<string> {
   },
 }
 ```
+
+## How this rule approximates inference
+
+This rule uses TypeScript's type checker APIs to approximate the inferred return type. It is **not** a full re-implementation of TypeScript's inference engine.
+
+- **Single return:** Widened via `getBaseTypeOfLiteralType` (matches TS signature inference)
+- **Multiple returns:** Literal union from return expressions (matches TS union inference)
+- **Async functions:** Standard `Promise<T>` / `PromiseLike<T>` unwrapped; inner type compared
+
+This approach covers the vast majority of real-world cases. See [What is not checked](#what-is-not-checked) for known limitations.
 
 ## What is not checked
 
