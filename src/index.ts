@@ -1,8 +1,12 @@
+import { createRequire } from 'node:module';
 import { noMisleadingReturnType } from './rules/no-misleading-return-type.js';
+
+const require = createRequire(import.meta.url);
+const { version } = require('../package.json') as { version: string };
 
 export const meta = {
   name: 'eslint-plugin-no-misleading-return-type',
-  version: '0.1.2',
+  version,
 };
 
 export const rules = { 'no-misleading-return-type': noMisleadingReturnType };
