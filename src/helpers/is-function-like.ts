@@ -1,4 +1,4 @@
-import ts from 'typescript';
+import ts from "typescript";
 
 export function isFunctionLike(node: ts.Node) {
   return (
