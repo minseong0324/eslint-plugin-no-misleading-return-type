@@ -1,5 +1,19 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.4.0
+
+### Minor Changes
+
+- Improve type analysis accuracy and add `PromiseLike<T>` support ([#28](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/28))
+
+  - Deepen `containsAny` traversal to detect `any` inside object properties, nested objects, and index signatures with cycle guard for recursive types
+  - Fix `includesUndefined` to recurse into intersection types (consistent with `containsAny` pattern)
+  - Support `PromiseLike<T>` annotations in async functions (previously only `Promise<T>` was unwrapped)
+  - Remove `src` from published `files` to reduce package size
+  - Fix untranslated English text in Korean README
+  - Add unit tests for `includesUndefined` helper
+  - Add integration tests for `PromiseLike`, async void union heuristic, and export default anonymous function
+
 ## 0.3.1
 
 ### Patch Changes
