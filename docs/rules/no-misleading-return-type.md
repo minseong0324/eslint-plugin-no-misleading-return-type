@@ -81,6 +81,7 @@ async function greet(): Promise<string> {
 ```ts
 type Options = {
   fix?: 'suggestion' | 'autofix' | 'none'; // default: 'suggestion'
+  debug?: boolean; // default: false
 };
 ```
 
@@ -89,6 +90,10 @@ type Options = {
 | `"suggestion"` | IDE inline suggestion to remove the annotation (default) |
 | `"autofix"` | Auto-removes the annotation on `--fix`; falls back to suggestion for exported functions |
 | `"none"` | Report only, no fix offered |
+
+| Option | Type | Default | Effect |
+|--------|------|---------|--------|
+| `debug` | `boolean` | `false` | Log skip reasons to stderr for troubleshooting |
 
 ```ts
 // eslint.config.ts

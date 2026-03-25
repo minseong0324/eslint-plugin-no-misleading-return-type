@@ -17,7 +17,7 @@ type FunctionNode =
   | TSESTree.ArrowFunctionExpression;
 
 type FixOption = 'suggestion' | 'autofix' | 'none';
-type Options = [{ fix: FixOption }];
+type Options = [{ fix: FixOption; debug: boolean }];
 type MessageIds = 'misleadingReturnType' | 'removeReturnType';
 
 export const noMisleadingReturnType = createRule<Options, MessageIds>({
@@ -44,15 +44,32 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             enum: ['suggestion', 'autofix', 'none'],
             default: 'suggestion',
           },
+          debug: {
+            type: 'boolean',
+            default: false,
+          },
         },
         additionalProperties: false,
       },
     ],
   },
-  defaultOptions: [{ fix: 'suggestion' }],
+  defaultOptions: [{ fix: 'suggestion', debug: false }],
   create(context) {
     const parserServices = ESLintUtils.getParserServices(context);
     const checker = parserServices.program.getTypeChecker();
+
+    const debugMode = context.options[0]?.debug ?? false;
+
+    function debugLog(node: FunctionNode, reason: string) {
+      if (!debugMode) {
+        return;
+      }
+      const loc = node.loc?.start;
+      const file = context.filename;
+      console.warn(
+        `[no-misleading-return-type] skip: ${reason} (${file}:${loc?.line}:${loc?.column})`,
+      );
+    }
 
     // Captured via closure — all checker-dependent logic lives here
     // "inferred" here means the approximated function return type:
@@ -139,10 +156,12 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     function checkFunction(node: FunctionNode) {
       // Phase 1: ESTree-only cheap checks (no type checker calls)
       if (!node.returnType) {
+        debugLog(node, 'no return type annotation');
         return;
       }
 
       if (!node.body) {
+        debugLog(node, 'no function body');
         return;
       } // overload signatures, abstract methods, and declare functions all have no body
 
@@ -155,12 +174,14 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         // TODO(v2): Getters could be compared if we also inspect the setter's
         // parameter type. Skipped because getter-only return type semantics
         // differ from regular functions (no explicit call-site inference).
+        debugLog(node, 'getter/setter');
         return;
       }
       if (node.generator) {
         // generators — v1 skip
         // TODO(v2): Generator return type is Iterator<T, TReturn, TNext>.
         // Unwrapping the yielded/return types is non-trivial. Skipped for v1.
+        debugLog(node, 'generator function');
         return;
       }
       if (node.typeParameters) {
@@ -168,6 +189,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         // Inference depends on call-site instantiation, not the function body alone.
         // TODO(v2): Could check per call-site with generic instantiation,
         // but the scope is too broad and error-prone for v1.
+        debugLog(node, 'generic function (type parameters)');
         return;
       }
 
@@ -182,6 +204,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         tsReturnTypeNode as ts.TypeNode,
       );
       if (isEscapeHatch(annotatedType)) {
+        debugLog(node, 'escape hatch annotation (void/any/unknown/never)');
         return;
       }
 
@@ -213,6 +236,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
               | ts.MethodDeclaration
           ).body;
           if (!tsFuncBody || !ts.isBlock(tsFuncBody)) {
+            debugLog(node, 'no block body');
             return;
           }
 
@@ -222,6 +246,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           collectReturnTypes(tsFuncBody, returnTypes);
 
           if (returnTypes.length === 0) {
+            debugLog(node, 'no return statements (void function)');
             return;
           } // void function — nothing to compare
 
@@ -240,6 +265,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             const UnionReductionLiteral =
               (ts as any).UnionReduction?.Literal ?? 1;
             if (typeof getUnionType !== 'function') {
+              debugLog(node, 'internal union API unavailable');
               return; // Internal API unavailable — skip safely
             }
             inferredType = getUnionType.call(
@@ -254,10 +280,12 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         // mutually-recursive functions (circular type dependency). Any other exception
         // here also results in a missed diagnostic rather than a crash, which is
         // acceptable for v1. Tracked as a known v1 limitation in the docs.
+        debugLog(node, 'type resolution error (recursive/circular)');
         return;
       }
 
       if (containsAny(inferredType)) {
+        debugLog(node, 'inferred type contains any');
         return;
       } // any-contaminated inference is unreliable
 
@@ -274,17 +302,20 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           !annotatedType.symbol ||
           !PROMISE_NAMES.has(annotatedType.symbol.name)
         ) {
+          debugLog(node, 'async but annotation is not Promise/PromiseLike');
           return;
         }
         const typeArgs = checker.getTypeArguments(
           annotatedType as ts.TypeReference,
         );
         if (!typeArgs || typeArgs.length === 0) {
+          debugLog(node, 'async Promise has no type arguments');
           return;
         }
 
         const annotatedInner = typeArgs[0];
         if (isEscapeHatch(annotatedInner)) {
+          debugLog(node, 'async inner type is escape hatch');
           return;
         } // Promise<void>, Promise<any>, etc.
 
@@ -308,9 +339,11 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           includesUndefined(annotatedInner) &&
           !includesUndefined(effectiveInferred)
         ) {
+          debugLog(node, 'implicit undefined/void heuristic');
           return; // implicit undefined path heuristic
         }
         if (!isAnnotatedWiderThanInferred(annotatedInner, effectiveInferred)) {
+          debugLog(node, 'annotation is not wider than inferred');
           return;
         }
       } else {
@@ -318,9 +351,11 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           includesUndefined(annotatedType) &&
           !includesUndefined(effectiveInferred)
         ) {
+          debugLog(node, 'implicit undefined/void heuristic');
           return; // implicit undefined path heuristic
         }
         if (!isAnnotatedWiderThanInferred(annotatedType, effectiveInferred)) {
+          debugLog(node, 'annotation is not wider than inferred');
           return;
         }
       }

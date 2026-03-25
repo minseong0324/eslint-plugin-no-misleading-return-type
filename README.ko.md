@@ -150,6 +150,7 @@ async function getStatus(x: boolean): Promise<string> {
 | 옵션 | 타입 | 기본값 | 효과 |
 |------|------|--------|------|
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | 수정 제공 방식 |
+| `debug` | `boolean` | `false` | Log skip reasons to stderr for troubleshooting |
 
 **fix 모드:**
 - `"suggestion"` — IDE 인라인 제안으로 주석 제거 (내보낸 함수에 안전)

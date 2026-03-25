@@ -150,6 +150,7 @@ async function getStatus(x: boolean): Promise<string> {
 | Option | Type | Default | Effect |
 |--------|------|---------|--------|
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | How to offer fixes |
+| `debug` | `boolean` | `false` | Log skip reasons to stderr for troubleshooting |
 
 **fix modes:**
 - `"suggestion"` — IDE inline suggestion to remove annotation (safe for exported functions)
