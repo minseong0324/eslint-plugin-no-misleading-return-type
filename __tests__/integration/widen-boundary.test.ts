@@ -20,12 +20,6 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       code: `function f(): boolean { return true; }`,
     },
 
-    // === Ternary single return — union also widened ===
-    {
-      name: 'single return ternary: string matches widened "a" | "b"',
-      code: `function f(x: boolean): string { return x ? "a" : "b"; }`,
-    },
-
     // === Concise arrow — widened ===
     {
       name: 'concise arrow: string matches widened "idle"',
@@ -34,6 +28,12 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
     {
       name: 'concise arrow: number matches widened 42',
       code: `const f = (): number => 42;`,
+    },
+
+    // === Concise arrow with as const — not widened ===
+    {
+      name: 'concise arrow as const: annotation matches literal',
+      code: `const f = (): "hello" => "hello" as const;`,
     },
 
     // === Async single return — widened ===
@@ -176,6 +176,48 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
           return "b";
         }
       `,
+            },
+          ],
+        },
+      ],
+    },
+
+    // === Ternary single return — union NOT widened (P0-4 fix) ===
+    {
+      name: 'single return ternary: string wider than "a" | "b"',
+      code: `function f(x: boolean): string { return x ? "a" : "b"; }`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `function f(x: boolean) { return x ? "a" : "b"; }`,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `function f(x: boolean): "a" | "b" { return x ? "a" : "b"; }`,
+            },
+          ],
+        },
+      ],
+    },
+
+    // === Concise arrow with as const — annotation wider than preserved literal ===
+    {
+      name: 'concise arrow as const: string wider than "hello"',
+      code: `const f = (): string => "hello" as const;`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `const f = () => "hello" as const;`,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `const f = (): "hello" => "hello" as const;`,
             },
           ],
         },

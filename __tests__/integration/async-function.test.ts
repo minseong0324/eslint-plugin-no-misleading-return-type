@@ -158,7 +158,7 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'narrowReturnType',
               output: `
-        async function f(x: boolean): Promise<"a" | "b"> {
+        async function f(x: boolean): PromiseLike<"a" | "b"> {
           if (x) return "a";
           return "b";
         }

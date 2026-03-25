@@ -92,6 +92,48 @@ export function isExported(
     }
   }
 
+  // === Object literal method in exported variable ===
+
+  // Case G: export const api = { method() {} }
+  if (node.parent?.type === 'Property') {
+    const objExpr = node.parent.parent;
+    if (
+      objExpr?.type === 'ObjectExpression' &&
+      objExpr.parent?.type === 'VariableDeclarator' &&
+      objExpr.parent.parent?.type === 'VariableDeclaration'
+    ) {
+      const varDeclParent = objExpr.parent.parent.parent;
+      if (
+        varDeclParent?.type === 'ExportNamedDeclaration' ||
+        varDeclParent?.type === 'ExportDefaultDeclaration'
+      ) {
+        return true;
+      }
+      // Indirect: const api = { method() {} }; export { api }
+      const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(
+        objExpr.parent,
+      );
+      if (
+        ts.isVariableDeclaration(tsVarDecl) &&
+        ts.isIdentifier(tsVarDecl.name)
+      ) {
+        return isSymbolExported(tsVarDecl.name);
+      }
+    }
+  }
+
+  // === CommonJS-style export assignment ===
+
+  // Case H: export = function/class (TypeScript namespace export)
+  if (
+    node.parent?.type === 'TSExportAssignment' ||
+    (node.parent?.type === 'VariableDeclarator' &&
+      node.parent.parent?.type === 'VariableDeclaration' &&
+      node.parent.parent.parent?.type === 'TSExportAssignment')
+  ) {
+    return true;
+  }
+
   // === Indirect export: symbol in file's exports map ===
 
   // Case D: function foo() {} ... export { foo }

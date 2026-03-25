@@ -582,6 +582,49 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       ],
     },
 
+    // ── Object literal method in exported variable ────────────
+    {
+      name: 'fix: autofix on exported object literal method — falls back to suggestion',
+      options: [{ fix: 'autofix' }],
+      code: `
+        export const api = {
+          getKey(x: boolean): string {
+            if (x) return "foo";
+            return "bar";
+          }
+        };
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        export const api = {
+          getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
+        };
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        export const api = {
+          getKey(x: boolean): "foo" | "bar" {
+            if (x) return "foo";
+            return "bar";
+          }
+        };
+      `,
+            },
+          ],
+        },
+      ],
+    },
+
     // ── Non-exported: autofix still applies ───────────────────
     {
       name: 'fix: autofix on non-exported function — autofix applies normally',
