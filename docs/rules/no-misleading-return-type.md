@@ -126,7 +126,7 @@ function getStatus(loading: boolean): string {
 | Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
 | Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
 | Enum literal returns | Enum member types may be over-widened to their base type (e.g. `Status.Idle` → `string` instead of `Status`) |
-| `PromiseLike` / custom thenables | Only standard `Promise<T>` is unwrapped |
+| Custom thenables | Only `Promise<T>` and `PromiseLike<T>` are unwrapped |
 | `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
 
 ## How the rule compares types

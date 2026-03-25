@@ -7,24 +7,48 @@ import { createTypeResolver } from './helpers/create-type.js';
 function containsAny(
   checker: ReturnType<typeof createTypeResolver>['checker'],
   type: ts.Type,
+  visited = new Set<ts.Type>(),
 ): boolean {
+  if (visited.has(type)) {
+    return false;
+  }
+  visited.add(type);
+
   if (type.flags & ts.TypeFlags.Any) {
     return true;
   }
-  if (type.isUnion()) {
-    return type.types.some((t) => containsAny(checker, t));
+
+  if (type.isUnion() || type.isIntersection()) {
+    return type.types.some((t) => containsAny(checker, t, visited));
   }
-  if (type.isIntersection()) {
-    return type.types.some((t) => containsAny(checker, t));
-  }
+
   if (
     type.flags & ts.TypeFlags.Object &&
     (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
   ) {
     return checker
       .getTypeArguments(type as ts.TypeReference)
-      .some((t) => containsAny(checker, t));
+      .some((t) => containsAny(checker, t, visited));
   }
+
+  // Object properties
+  if (type.flags & ts.TypeFlags.Object) {
+    for (const prop of type.getProperties()) {
+      const propType = checker.getTypeOfSymbol(prop);
+      if (containsAny(checker, propType, visited)) {
+        return true;
+      }
+    }
+    const stringIndex = type.getStringIndexType();
+    if (stringIndex && containsAny(checker, stringIndex, visited)) {
+      return true;
+    }
+    const numberIndex = type.getNumberIndexType();
+    if (numberIndex && containsAny(checker, numberIndex, visited)) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -64,6 +88,27 @@ describe('containsAny', () => {
 
   it('string | number does not contain any', () => {
     const r = createTypeResolver(`type T = string | number`);
+    assert.ok(!containsAny(r.checker, r.getType('T')));
+  });
+
+  // Deep traversal: object properties
+  it('object with any property contains any', () => {
+    const r = createTypeResolver(`type T = { name: any }`);
+    assert.ok(containsAny(r.checker, r.getType('T')));
+  });
+
+  it('nested object with deep any contains any', () => {
+    const r = createTypeResolver(`type T = { nested: { deep: any } }`);
+    assert.ok(containsAny(r.checker, r.getType('T')));
+  });
+
+  it('index signature with any value contains any', () => {
+    const r = createTypeResolver(`type T = { [key: string]: any }`);
+    assert.ok(containsAny(r.checker, r.getType('T')));
+  });
+
+  it('plain object without any does not contain any', () => {
+    const r = createTypeResolver(`type T = { name: string; age: number }`);
     assert.ok(!containsAny(r.checker, r.getType('T')));
   });
 });

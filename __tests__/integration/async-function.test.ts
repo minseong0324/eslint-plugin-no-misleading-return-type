@@ -62,6 +62,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'single literal return: Promise<number> matches widened 42',
       code: `async function getCode(): Promise<number> { return 42; }`,
     },
+    {
+      name: 'PromiseLike<string> with single return — widened, no warning',
+      code: `async function f(): PromiseLike<string> { return "ok"; }`,
+    },
   ],
   invalid: [
     {
@@ -108,6 +112,31 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               output: `
         async function inner(): Promise<"ok"> { return "ok"; }
         async function outer() { return inner(); }
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'PromiseLike<string> wider than "a" | "b"',
+      code: `
+        async function f(x: boolean): PromiseLike<string> {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        async function f(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
       `,
             },
           ],
