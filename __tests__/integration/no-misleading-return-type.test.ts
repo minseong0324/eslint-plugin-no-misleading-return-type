@@ -50,6 +50,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getStatus(x: boolean): "idle" | "loading" {
+          if (x) return "idle";
+          return "loading";
+        }
+      `,
+            },
           ],
         },
       ],
@@ -79,6 +88,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getStatus(x: boolean): "idle" | "loading" {
+          if (x) return "idle";
+          return "loading";
+        }
+      `,
+            },
           ],
         },
       ],
@@ -99,6 +117,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         function foo(x: boolean) {
+          if (x) return 42;
+          return 99;
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function foo(x: boolean): 42 | 99 {
           if (x) return 42;
           return 99;
         }

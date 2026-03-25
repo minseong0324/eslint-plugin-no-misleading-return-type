@@ -20,7 +20,10 @@ type FunctionNode =
 
 type FixOption = 'suggestion' | 'autofix' | 'none';
 type Options = [{ fix: FixOption }];
-type MessageIds = 'misleadingReturnType' | 'removeReturnType';
+type MessageIds =
+  | 'misleadingReturnType'
+  | 'removeReturnType'
+  | 'narrowReturnType';
 
 export const noMisleadingReturnType = createRule<Options, MessageIds>({
   name: 'no-misleading-return-type',
@@ -36,6 +39,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       misleadingReturnType:
         'Return type `{{annotated}}` is wider than the inferred type `{{inferred}}`. Remove the annotation or narrow it.',
       removeReturnType: 'Remove return type annotation',
+      narrowReturnType: 'Narrow return type to `{{inferred}}`',
     },
     schema: [
       {
@@ -353,6 +357,12 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             {
               messageId: 'removeReturnType',
               fix: (fixer) => fixer.remove(node.returnType!),
+            },
+            {
+              messageId: 'narrowReturnType',
+              data: reportData,
+              fix: (fixer) =>
+                fixer.replaceText(node.returnType!, `: ${inferredTypeString}`),
             },
           ],
         });

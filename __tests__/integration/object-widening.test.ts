@@ -56,6 +56,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `function f() { return { type: "idle" }; }`,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `function f(): { type: string; } { return { type: "idle" }; }`,
+            },
           ],
         },
       ],
@@ -82,6 +86,18 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         function getErrorMessages() {
+          return {
+            INVALID_TOKEN: 'Please log in again.',
+            RATE_LIMITED: 'Too many requests. Try again later.',
+            NETWORK_ERROR: 'Check your network connection.',
+          } as const;
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getErrorMessages(): { readonly INVALID_TOKEN: "Please log in again."; readonly RATE_LIMITED: "Too many requests. Try again later."; readonly NETWORK_ERROR: "Check your network connection."; } {
           return {
             INVALID_TOKEN: 'Please log in again.',
             RATE_LIMITED: 'Too many requests. Try again later.',

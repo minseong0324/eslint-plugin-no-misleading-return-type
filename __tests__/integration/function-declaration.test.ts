@@ -69,6 +69,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `function getConfig() { return { retry: true }; }`,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `function getConfig(): { retry: boolean; } { return { retry: true }; }`,
+            },
           ],
         },
       ],
@@ -89,6 +93,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         function getStatus(loading: boolean) {
+          if (loading) return "loading";
+          return "idle";
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getStatus(loading: boolean): "loading" | "idle" {
           if (loading) return "loading";
           return "idle";
         }

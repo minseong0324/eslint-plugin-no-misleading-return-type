@@ -50,6 +50,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         };
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        const getStatus = function(x: boolean): "idle" | "loading" {
+          if (x) return "idle";
+          return "loading";
+        };
+      `,
+            },
           ],
         },
       ],

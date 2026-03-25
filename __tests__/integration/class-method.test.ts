@@ -94,6 +94,17 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        class Foo {
+          getKey(x: boolean): "foo" | "bar" {
+            if (x) return "foo";
+            return "bar";
+          }
+        }
+      `,
+            },
           ],
         },
       ],

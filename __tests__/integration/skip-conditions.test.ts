@@ -191,6 +191,18 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
             },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function outer(x: boolean): "a" | "b" {
+          class Inner {
+            constructor() { return Object.create(null); }
+          }
+          if (x) return 'a';
+          return 'b';
+        }
+      `,
+            },
           ],
         },
       ],

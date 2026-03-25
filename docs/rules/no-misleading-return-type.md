@@ -86,7 +86,7 @@ type Options = {
 
 | Option | Effect |
 |--------|--------|
-| `"suggestion"` | IDE inline suggestion to remove the annotation (default) |
+| `"suggestion"` | IDE inline suggestions: (1) remove annotation, (2) narrow annotation to inferred type (default) |
 | `"autofix"` | Auto-removes the annotation on `--fix`; falls back to suggestion for exported functions |
 | `"none"` | Report only, no fix offered |
 
