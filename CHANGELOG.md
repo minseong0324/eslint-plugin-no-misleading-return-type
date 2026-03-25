@@ -1,5 +1,35 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.6.0
+
+### Minor Changes
+
+- fix: preserve PromiseLike wrapper name in narrow suggestion instead of always using Promise ([#38](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/38))
+
+  fix: unwrap PromiseLike (not just Promise) on inferred side for async function comparison
+
+  feat: detect single-return union expressions (e.g. ternary) as literal unions instead of widening
+
+  feat: detect `as const` concise arrow returns as literal types instead of widening
+
+  feat: detect exported object literal methods for isolatedDeclarations safety
+
+  feat: detect `export =` assignments for isolatedDeclarations safety
+
+  refactor: hoist PROMISE_NAMES to module scope to avoid per-function allocation
+
+### Patch Changes
+
+- fix: detect methods in `export default { ... }` as exported for isolatedDeclarations safety ([#41](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/41))
+
+  fix: detect methods in nested exported objects (e.g. `export const c = { nested: { method() {} } }`)
+
+  fix: exclude `removeReturnType` suggestion for exported functions to prevent isolatedDeclarations breakage
+
+  fix: skip `narrowReturnType` suggestion when `typeToString` produces unparseable output
+
+  fix: replace unsafe `as ts.TypeNode` cast with `ts.isTypeNode()` guard
+
 ## 0.5.0
 
 ### Minor Changes
