@@ -20,12 +20,6 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       code: `function f(): boolean { return true; }`,
     },
 
-    // === Ternary single return — union also widened ===
-    {
-      name: 'single return ternary: string matches widened "a" | "b"',
-      code: `function f(x: boolean): string { return x ? "a" : "b"; }`,
-    },
-
     // === Concise arrow — widened ===
     {
       name: 'concise arrow: string matches widened "idle"',
@@ -36,6 +30,12 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       code: `const f = (): number => 42;`,
     },
 
+    // === as const concise arrow — literal matches literal annotation ===
+    {
+      name: 'as const concise arrow: "hello" annotation matches preserved literal',
+      code: `const f = (): "hello" => "hello" as const;`,
+    },
+
     // === Async single return — widened ===
     {
       name: 'async single return: Promise<string> matches widened "hello"',
@@ -43,6 +43,27 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
     },
   ],
   invalid: [
+    // === Ternary single return — union preserved, not widened ===
+    {
+      name: 'single return ternary: string wider than "a" | "b"',
+      code: `function f(x: boolean): string { return x ? "a" : "b"; }`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `function f(x: boolean) { return x ? "a" : "b"; }`,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `function f(x: boolean): "a" | "b" { return x ? "a" : "b"; }`,
+            },
+          ],
+        },
+      ],
+    },
+
     // === Multi-return — union preserved, annotation wider ===
     {
       name: 'multi-return: string wider than "idle" | "loading"',
@@ -176,6 +197,27 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
           return "b";
         }
       `,
+            },
+          ],
+        },
+      ],
+    },
+
+    // === as const concise arrow — annotation wider than preserved literal ===
+    {
+      name: 'as const concise arrow: string wider than preserved "hello"',
+      code: `const f = (): string => "hello" as const;`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `const f = () => "hello" as const;`,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `const f = (): "hello" => "hello" as const;`,
             },
           ],
         },
