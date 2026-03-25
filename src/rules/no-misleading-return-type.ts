@@ -18,7 +18,10 @@ type FunctionNode =
 
 type FixOption = 'suggestion' | 'autofix' | 'none';
 type Options = [{ fix: FixOption }];
-type MessageIds = 'misleadingReturnType' | 'removeReturnType' | 'narrowReturnType';
+type MessageIds =
+  | 'misleadingReturnType'
+  | 'removeReturnType'
+  | 'narrowReturnType';
 
 export const noMisleadingReturnType = createRule<Options, MessageIds>({
   name: 'no-misleading-return-type',
@@ -500,10 +503,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
               messageId: 'narrowReturnType',
               data: reportData,
               fix: (fixer) =>
-                fixer.replaceText(
-                  node.returnType!,
-                  `: ${inferredTypeString}`,
-                ),
+                fixer.replaceText(node.returnType!, `: ${inferredTypeString}`),
             },
           ],
         });
