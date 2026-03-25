@@ -4,6 +4,7 @@ import ts from 'typescript';
 import { includesUndefined } from '../helpers/includes-undefined.js';
 import { isEscapeHatch } from '../helpers/is-escape-hatch.js';
 import { isFunctionLike } from '../helpers/is-function-like.js';
+import { createUnionType } from '../helpers/create-union-type.js';
 import { truncateTypeString } from '../helpers/truncate-type-string.js';
 
 const createRule = ESLintUtils.RuleCreator(
@@ -229,24 +230,11 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             // Widen literal: TS widens single literal returns (e.g. "idle" → string)
             inferredType = checker.getBaseTypeOfLiteralType(returnTypes[0]);
           } else {
-            // getUnionType is an internal TypeScript API also used by typescript-eslint itself.
-            // No public alternative exists for constructing a union from an array of ts.Type objects.
-            // Public API only supports union creation via AST/inference, not from runtime type arrays.
-            // The typeof guard ensures safe fallback if this API is removed in a future TS version.
-            const getUnionType = (checker as any).getUnionType;
-            // UnionReduction.Literal = 1 preserves literal types in the resulting union
-            // (vs UnionReduction.Subtype = 2, which collapses subtypes into their base types).
-            // Fallback to 1 if the enum is renamed or removed in a future TS version.
-            const UnionReductionLiteral =
-              (ts as any).UnionReduction?.Literal ?? 1;
-            if (typeof getUnionType !== 'function') {
+            const union = createUnionType(checker, returnTypes);
+            if (!union) {
               return; // Internal API unavailable — skip safely
             }
-            inferredType = getUnionType.call(
-              checker,
-              returnTypes,
-              UnionReductionLiteral,
-            );
+            inferredType = union;
           }
         }
       } catch {
