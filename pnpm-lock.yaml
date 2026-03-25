@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@typescript-eslint/utils':
+        specifier: ^8.0.0
+        version: 8.57.1(eslint@10.1.0(jiti@2.6.1))(typescript@5.9.3)
     devDependencies:
       '@biomejs/biome':
         specifier: ^2.4.8
@@ -24,9 +28,6 @@ importers:
         specifier: ^8.57.1
         version: 8.57.1(eslint@10.1.0(jiti@2.6.1))(typescript@5.9.3)
       '@typescript-eslint/rule-tester':
-        specifier: ^8.57.1
-        version: 8.57.1(eslint@10.1.0(jiti@2.6.1))(typescript@5.9.3)
-      '@typescript-eslint/utils':
         specifier: ^8.57.1
         version: 8.57.1(eslint@10.1.0(jiti@2.6.1))(typescript@5.9.3)
       eslint:
