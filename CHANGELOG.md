@@ -1,5 +1,19 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.5.0
+
+### Minor Changes
+
+- Add "narrow return type" suggestion that replaces annotation with inferred type ([#37](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/37))
+
+### Patch Changes
+
+- Extract internal TS `getUnionType` API call into `createUnionType` helper for maintainability ([#31](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/31))
+
+- Extract `isExported` detection logic into dedicated helper module for maintainability ([#32](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/32))
+
+- Update project description to accurately reflect approximation-based type analysis ([#30](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/30))
+
 ## 0.4.0
 
 ### Minor Changes
