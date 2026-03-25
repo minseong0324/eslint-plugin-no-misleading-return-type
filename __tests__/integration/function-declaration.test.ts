@@ -44,53 +44,20 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
     },
+    {
+      name: 'single literal return: string matches widened "idle"',
+      code: `function getStatus(): string { return "idle"; }`,
+    },
+    {
+      name: 'single literal return: number matches widened 404',
+      code: `function getCode(): number { return 404; }`,
+    },
+    {
+      name: 'single literal return: boolean matches widened true',
+      code: `function isEnabled(): boolean { return true; }`,
+    },
   ],
   invalid: [
-    {
-      name: "string literal widening: 'idle' annotated as string",
-      code: `function getStatus(): string { return "idle"; }`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `function getStatus() { return "idle"; }`,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'number literal widening: 404 annotated as number',
-      code: `function getCode(): number { return 404; }`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `function getCode() { return 404; }`,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'boolean literal widening: true annotated as boolean',
-      code: `function isEnabled(): boolean { return true; }`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `function isEnabled() { return true; }`,
-            },
-          ],
-        },
-      ],
-    },
     {
       name: 'object widening: { retry: true } annotated as object',
       code: `function getConfig(): object { return { retry: true }; }`,
@@ -101,6 +68,31 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'removeReturnType',
               output: `function getConfig() { return { retry: true }; }`,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'multi-return: string wider than "idle" | "loading"',
+      code: `
+        function getStatus(loading: boolean): string {
+          if (loading) return "loading";
+          return "idle";
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        function getStatus(loading: boolean) {
+          if (loading) return "loading";
+          return "idle";
+        }
+      `,
             },
           ],
         },

@@ -23,18 +23,32 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'all valid cases pass without warning — escape hatch any',
       code: `function getVal(): any { return "x"; }`,
     },
+    {
+      name: 'single literal return — widened type matches annotation',
+      code: `function getStatus(): string { return "idle"; }`,
+    },
   ],
   invalid: [
     {
-      name: 'all invalid cases produce warning with correct message — string widening',
-      code: `function getStatus(): string { return "idle"; }`,
+      name: 'multi-return produces warning with correct message — string widening',
+      code: `
+        function getStatus(x: boolean): string {
+          if (x) return "idle";
+          return "loading";
+        }
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
           suggestions: [
             {
               messageId: 'removeReturnType',
-              output: `function getStatus() { return "idle"; }`,
+              output: `
+        function getStatus(x: boolean) {
+          if (x) return "idle";
+          return "loading";
+        }
+      `,
             },
           ],
         },
@@ -42,28 +56,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
     },
     {
       name: 'message includes annotated and inferred type strings',
-      code: `function getStatus(): string { return "idle"; }`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          data: {
-            annotated: 'string',
-            inferred: '"idle"',
-          },
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `function getStatus() { return "idle"; }`,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'message truncates long type strings',
       code: `
-        function getVal(): string {
-          return "short";
+        function getStatus(x: boolean): string {
+          if (x) return "idle";
+          return "loading";
         }
       `,
       errors: [
@@ -71,14 +67,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
           messageId: 'misleadingReturnType',
           data: {
             annotated: 'string',
-            inferred: '"short"',
+            inferred: '"idle" | "loading"',
           },
           suggestions: [
             {
               messageId: 'removeReturnType',
               output: `
-        function getVal() {
-          return "short";
+        function getStatus(x: boolean) {
+          if (x) return "idle";
+          return "loading";
         }
       `,
             },
@@ -87,25 +84,45 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       ],
     },
     {
-      name: 'fix options work as configured — default suggestion',
-      code: `function foo(): number { return 42; }`,
+      name: 'fix options work as configured — default suggestion (multi-return)',
+      code: `
+        function foo(x: boolean): number {
+          if (x) return 42;
+          return 99;
+        }
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
           suggestions: [
             {
               messageId: 'removeReturnType',
-              output: `function foo() { return 42; }`,
+              output: `
+        function foo(x: boolean) {
+          if (x) return 42;
+          return 99;
+        }
+      `,
             },
           ],
         },
       ],
     },
     {
-      name: 'fix options work as configured — autofix',
+      name: 'fix options work as configured — autofix (multi-return)',
       options: [{ fix: 'autofix' }],
-      code: `function foo(): number { return 42; }`,
-      output: `function foo() { return 42; }`,
+      code: `
+        function foo(x: boolean): number {
+          if (x) return 42;
+          return 99;
+        }
+      `,
+      output: `
+        function foo(x: boolean) {
+          if (x) return 42;
+          return 99;
+        }
+      `,
       errors: [{ messageId: 'misleadingReturnType' }],
     },
   ],

@@ -6,15 +6,24 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
   invalid: [
     {
       name: 'fix: suggestion (default) — provides suggestion, no autofix',
-      code: `function foo(): string { return "hello"; }`,
-      // No top-level output: no autofix applied
+      code: `
+        function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
           suggestions: [
             {
               messageId: 'removeReturnType',
-              output: `function foo() { return "hello"; }`,
+              output: `
+        function foo(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
             },
           ],
         },
@@ -23,22 +32,41 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
     {
       name: 'fix: autofix — removes annotation automatically',
       options: [{ fix: 'autofix' }],
-      code: `function foo(): string { return "hello"; }`,
-      output: `function foo() { return "hello"; }`,
+      code: `
+        function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+      output: `
+        function foo(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
       errors: [{ messageId: 'misleadingReturnType' }],
     },
     {
       name: 'fix: autofix on exported function — falls back to suggestion for isolatedDeclarations safety',
       options: [{ fix: 'autofix' }],
-      code: `export function foo(): string { return "hello"; }`,
-      // No top-level output: fallback to suggestion, no autofix
+      code: `
+        export function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
           suggestions: [
             {
               messageId: 'removeReturnType',
-              output: `export function foo() { return "hello"; }`,
+              output: `
+        export function foo(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
             },
           ],
         },
@@ -47,14 +75,24 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
     {
       name: 'fix: autofix on exported function expression (export const foo = function()) — falls back to suggestion',
       options: [{ fix: 'autofix' }],
-      code: `export const getStatus = function(): string { return "idle"; }`,
+      code: `
+        export const getStatus = function(x: boolean): string {
+          if (x) return "idle";
+          return "loading";
+        };
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
           suggestions: [
             {
               messageId: 'removeReturnType',
-              output: `export const getStatus = function() { return "idle"; }`,
+              output: `
+        export const getStatus = function(x: boolean) {
+          if (x) return "idle";
+          return "loading";
+        };
+      `,
             },
           ],
         },
@@ -63,14 +101,24 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
     {
       name: 'fix: autofix on exported arrow function expression (export const foo = () =>) — falls back to suggestion',
       options: [{ fix: 'autofix' }],
-      code: `export const getStatus = (): string => "idle";`,
+      code: `
+        export const getStatus = (x: boolean): string => {
+          if (x) return "idle";
+          return "loading";
+        };
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
           suggestions: [
             {
               messageId: 'removeReturnType',
-              output: `export const getStatus = () => "idle";`,
+              output: `
+        export const getStatus = (x: boolean) => {
+          if (x) return "idle";
+          return "loading";
+        };
+      `,
             },
           ],
         },
@@ -79,7 +127,12 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
     {
       name: 'fix: none — reports without any fix',
       options: [{ fix: 'none' }],
-      code: `function foo(): string { return "hello"; }`,
+      code: `
+        function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
       errors: [{ messageId: 'misleadingReturnType' }],
     },
 
@@ -88,7 +141,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'fix: autofix on indirectly exported arrow — falls back to suggestion',
       options: [{ fix: 'autofix' }],
       code: `
-        const getStatus = (): string => "idle";
+        const getStatus = (x: boolean): string => {
+          if (x) return "idle";
+          return "loading";
+        };
         export { getStatus };
       `,
       errors: [
@@ -98,7 +154,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'removeReturnType',
               output: `
-        const getStatus = () => "idle";
+        const getStatus = (x: boolean) => {
+          if (x) return "idle";
+          return "loading";
+        };
         export { getStatus };
       `,
             },
@@ -110,7 +169,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'fix: autofix on indirectly exported function expression — falls back to suggestion',
       options: [{ fix: 'autofix' }],
       code: `
-        const getStatus = function(): string { return "idle"; };
+        const getStatus = function(x: boolean): string {
+          if (x) return "idle";
+          return "loading";
+        };
         export { getStatus };
       `,
       errors: [
@@ -120,7 +182,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'removeReturnType',
               output: `
-        const getStatus = function() { return "idle"; };
+        const getStatus = function(x: boolean) {
+          if (x) return "idle";
+          return "loading";
+        };
         export { getStatus };
       `,
             },
@@ -135,7 +200,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       options: [{ fix: 'autofix' }],
       code: `
         export class Foo {
-          getKey(): string { return "foo"; }
+          getKey(x: boolean): string {
+            if (x) return "foo";
+            return "bar";
+          }
         }
       `,
       errors: [
@@ -146,7 +214,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         export class Foo {
-          getKey() { return "foo"; }
+          getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
         }
       `,
             },
@@ -159,7 +230,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       options: [{ fix: 'autofix' }],
       code: `
         export default class {
-          getKey(): string { return "foo"; }
+          getKey(x: boolean): string {
+            if (x) return "foo";
+            return "bar";
+          }
         }
       `,
       errors: [
@@ -170,7 +244,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         export default class {
-          getKey() { return "foo"; }
+          getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
         }
       `,
             },
@@ -185,7 +262,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       options: [{ fix: 'autofix' }],
       code: `
         class Foo {
-          getKey(): string { return "foo"; }
+          getKey(x: boolean): string {
+            if (x) return "foo";
+            return "bar";
+          }
         }
         export { Foo };
       `,
@@ -197,7 +277,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         class Foo {
-          getKey() { return "foo"; }
+          getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
         }
         export { Foo };
       `,
@@ -213,7 +296,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       options: [{ fix: 'autofix' }],
       code: `
         export const Foo = class {
-          getKey(): string { return "foo"; }
+          getKey(x: boolean): string {
+            if (x) return "foo";
+            return "bar";
+          }
         };
       `,
       errors: [
@@ -224,7 +310,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         export const Foo = class {
-          getKey() { return "foo"; }
+          getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
         };
       `,
             },
@@ -237,7 +326,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       options: [{ fix: 'autofix' }],
       code: `
         const Foo = class {
-          getKey(): string { return "foo"; }
+          getKey(x: boolean): string {
+            if (x) return "foo";
+            return "bar";
+          }
         };
         export { Foo };
       `,
@@ -249,7 +341,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'removeReturnType',
               output: `
         const Foo = class {
-          getKey() { return "foo"; }
+          getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
         };
         export { Foo };
       `,
@@ -264,7 +359,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'fix: autofix on renamed export function — falls back to suggestion',
       options: [{ fix: 'autofix' }],
       code: `
-        function getStatus(): string { return "idle"; }
+        function getStatus(x: boolean): string {
+          if (x) return "idle";
+          return "loading";
+        }
         export { getStatus as status };
       `,
       errors: [
@@ -274,7 +372,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'removeReturnType',
               output: `
-        function getStatus() { return "idle"; }
+        function getStatus(x: boolean) {
+          if (x) return "idle";
+          return "loading";
+        }
         export { getStatus as status };
       `,
             },
@@ -286,7 +387,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'fix: autofix on renamed export arrow — falls back to suggestion',
       options: [{ fix: 'autofix' }],
       code: `
-        const getStatus = (): string => "idle";
+        const getStatus = (x: boolean): string => {
+          if (x) return "idle";
+          return "loading";
+        };
         export { getStatus as status };
       `,
       errors: [
@@ -296,7 +400,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'removeReturnType',
               output: `
-        const getStatus = () => "idle";
+        const getStatus = (x: boolean) => {
+          if (x) return "idle";
+          return "loading";
+        };
         export { getStatus as status };
       `,
             },
@@ -309,8 +416,18 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
     {
       name: 'fix: autofix on non-exported function — autofix applies normally',
       options: [{ fix: 'autofix' }],
-      code: `function foo(): string { return "hello"; }`,
-      output: `function foo() { return "hello"; }`,
+      code: `
+        function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+      output: `
+        function foo(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
       errors: [{ messageId: 'misleadingReturnType' }],
     },
     {
@@ -318,12 +435,18 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       options: [{ fix: 'autofix' }],
       code: `
         class Foo {
-          getKey(): string { return "foo"; }
+          getKey(x: boolean): string {
+            if (x) return "foo";
+            return "bar";
+          }
         }
       `,
       output: `
         class Foo {
-          getKey() { return "foo"; }
+          getKey(x: boolean) {
+            if (x) return "foo";
+            return "bar";
+          }
         }
       `,
       errors: [{ messageId: 'misleadingReturnType' }],

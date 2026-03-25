@@ -26,13 +26,13 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     type: 'suggestion',
     docs: {
       description:
-        'Detect return type annotations that are less precise than the inferred type',
+        "Detect return type annotations that are wider than TypeScript's inferred return type",
     },
     fixable: 'code',
     hasSuggestions: true,
     messages: {
       misleadingReturnType:
-        'Return type `{{annotated}}` is less precise than the inferred type `{{inferred}}`. Remove the annotation or narrow it.',
+        'Return type `{{annotated}}` is wider than the inferred type `{{inferred}}`. Remove the annotation or narrow it.',
       removeReturnType: 'Remove return type annotation',
     },
     schema: [
@@ -55,6 +55,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     const checker = parserServices.program.getTypeChecker();
 
     // Captured via closure — all checker-dependent logic lives here
+    // "inferred" here means the approximated function return type:
+    // - Single return: widened via getBaseTypeOfLiteralType (matches TS signature inference)
+    // - Multi return: literal union from return expressions (matches TS union inference)
     function isAnnotatedWiderThanInferred(
       annotated: ts.Type,
       inferred: ts.Type,
@@ -163,17 +166,23 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       }
 
       // Phase 4: inferred type resolution
+      // For single-return and concise-arrow, apply getBaseTypeOfLiteralType to match
+      // TypeScript's return type inference (which widens lone literal returns).
+      // Multi-return unions are kept as-is — TS preserves literal unions.
       let inferredType: ts.Type;
       try {
         if (
           node.type === 'ArrowFunctionExpression' &&
           node.expression === true
         ) {
-          // Concise body arrow: the body IS the expression
+          // Concise body arrow: the body IS the expression.
+          // Widen literal types to match TS return type inference.
           const tsBody = parserServices.esTreeNodeToTSNodeMap.get(
             node.body as TSESTree.Expression,
           );
-          inferredType = checker.getTypeAtLocation(tsBody);
+          inferredType = checker.getBaseTypeOfLiteralType(
+            checker.getTypeAtLocation(tsBody),
+          );
         } else {
           // Block body: traverse return statements
           const tsFuncBody = (
@@ -197,7 +206,8 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           } // void function — nothing to compare
 
           if (returnTypes.length === 1) {
-            inferredType = returnTypes[0];
+            // Widen literal: TS widens single literal returns (e.g. "idle" → string)
+            inferredType = checker.getBaseTypeOfLiteralType(returnTypes[0]);
           } else {
             // getUnionType is an internal TypeScript API also used by typescript-eslint itself.
             // No public alternative exists for constructing a union from an array of ts.Type objects.

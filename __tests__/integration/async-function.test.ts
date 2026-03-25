@@ -54,38 +54,16 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         async function outer(): Promise<"ok"> { return inner(); }
       `,
     },
+    {
+      name: 'single literal return: Promise<string> matches widened "hello"',
+      code: `async function greet(): Promise<string> { return "hello"; }`,
+    },
+    {
+      name: 'single literal return: Promise<number> matches widened 42',
+      code: `async function getCode(): Promise<number> { return 42; }`,
+    },
   ],
   invalid: [
-    {
-      name: "Promise<string> annotated, inferred Promise<'hello'>",
-      code: `async function greet(): Promise<string> { return "hello"; }`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `async function greet() { return "hello"; }`,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'Promise<number> annotated, inferred Promise<42>',
-      code: `async function getCode(): Promise<number> { return 42; }`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `async function getCode() { return 42; }`,
-            },
-          ],
-        },
-      ],
-    },
     {
       name: "async with multiple returns: Promise<string> annotated, inferred Promise<'a' | 'b'>",
       code: `
@@ -137,19 +115,29 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       ],
     },
     {
-      name: 'message shows Promise<"hello"> not just "hello" for inferred type',
-      code: `async function greet(): Promise<string> { return "hello"; }`,
+      name: 'message shows Promise<"a" | "b"> for multi-return async inferred type',
+      code: `
+        async function greet(x: boolean): Promise<string> {
+          if (x) return "a";
+          return "b";
+        }
+      `,
       errors: [
         {
           messageId: 'misleadingReturnType',
           data: {
             annotated: 'Promise<string>',
-            inferred: 'Promise<"hello">',
+            inferred: 'Promise<"a" | "b">',
           },
           suggestions: [
             {
               messageId: 'removeReturnType',
-              output: `async function greet() { return "hello"; }`,
+              output: `
+        async function greet(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
             },
           ],
         },

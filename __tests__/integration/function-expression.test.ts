@@ -11,43 +11,30 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'function expression with matching return type',
       code: `const getStatus = function(): "idle" { return "idle"; };`,
     },
-  ],
-  invalid: [
     {
-      name: "function expression: 'idle' annotated as string",
+      name: 'single literal return: string matches widened',
       code: `const getStatus = function(): string { return "idle"; };`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `const getStatus = function() { return "idle"; };`,
-            },
-          ],
-        },
-      ],
     },
     {
-      name: 'function expression assigned to variable: number literal widening',
+      name: 'single literal return: number matches widened',
       code: `const getCode = function(): number { return 404; };`,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `const getCode = function() { return 404; };`,
-            },
-          ],
-        },
-      ],
     },
     {
-      name: 'object method function expression: string literal widening',
+      name: 'single literal return: object method FE matches widened',
       code: `
         const obj = {
           getLabel: function(): string { return "foo"; },
+        };
+      `,
+    },
+  ],
+  invalid: [
+    {
+      name: 'multi-return FE: string wider than "idle" | "loading"',
+      code: `
+        const getStatus = function(x: boolean): string {
+          if (x) return "idle";
+          return "loading";
         };
       `,
       errors: [
@@ -57,8 +44,9 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'removeReturnType',
               output: `
-        const obj = {
-          getLabel: function() { return "foo"; },
+        const getStatus = function(x: boolean) {
+          if (x) return "idle";
+          return "loading";
         };
       `,
             },
