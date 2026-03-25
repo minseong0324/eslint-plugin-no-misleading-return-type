@@ -1,6 +1,6 @@
 # eslint-plugin-no-misleading-return-type
 
-Detect return type annotations that are less precise than TypeScript's inferred type.
+Detect return type annotations that are wider than TypeScript's inferred return type.
 
 ## Why this rule?
 
@@ -105,6 +105,10 @@ function getErrorMessages() {
   } as const;
 }
 
+// Single literal return — TS infers string, annotation matches
+function getStatus(): string { return "idle"; }
+function getCode(): number { return 404; }
+
 // Annotation matches inferred
 function getStatus(): "idle" { return "idle"; }
 
@@ -114,6 +118,7 @@ function parse(s: string): any { return JSON.parse(s); }
 
 // Async with matching inner type
 async function greet(): Promise<"hello"> { return "hello"; }
+async function greet(): Promise<string> { return "hello"; }  // TS infers string for single return
 ```
 
 ### Invalid (warning)
@@ -127,17 +132,16 @@ function getErrorMessages(): Record<string, string> {
   } as const;
 }
 
-// Literal types widened
-function getStatus(): string { return "idle"; }  // string > "idle"
-function getCode(): number { return 404; }       // number > 404
-
-// Async function with wide Promise inner type
-async function greet(): Promise<string> { return "hello"; }  // Promise<string> > Promise<"hello">
-
 // Multi-return with union widening
 function getStatus(loading: boolean): string {
   if (loading) return "loading";
   return "idle";                                 // inferred: "loading" | "idle", annotation: string
+}
+
+// Async multi-return
+async function getStatus(x: boolean): Promise<string> {
+  if (x) return "a";
+  return "b";                                    // inferred: Promise<"a" | "b">, annotation: Promise<string>
 }
 ```
 
@@ -170,14 +174,17 @@ function getStatus(loading: boolean): string {
 
 | Case | Reason |
 |------|--------|
+| Single-return literal values | TypeScript widens lone literal returns (e.g. `return "idle"` → `string`), so annotation matches inferred |
 | Generic functions | Inference depends on call-site |
 | Generator functions | Complex iterator typing |
 | Getters / setters | Accessor semantics differ |
 | `void`, `any`, `unknown`, `never` | Intentional escape hatches |
 | `Promise<void>` / `Promise<any>` | Intentional escape hatches |
 | Functions with no `return` | Void functions — nothing to compare |
-| Recursive functions | Circular type resolution |
-| Object literals with required string properties | TypeScript contextual typing widens literals before inference |
+| Recursive functions and type-resolution edge cases | Circular or complex type resolution may silently skip |
+| Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
+| Enum literal returns | Enum member types may be over-widened to their base type (e.g. `Status.Idle` → `string` instead of `Status`) |
+| `PromiseLike` / custom thenables | Only standard `Promise<T>` is unwrapped |
 | `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
 
 ## When to intentionally widen
