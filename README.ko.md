@@ -1,6 +1,6 @@
 # eslint-plugin-no-misleading-return-type
 
-반환 타입 주석이 TypeScript의 추론 반환 타입보다 넓은 경우를 감지합니다.
+구현이 실제로 반환하는 것보다 오도할 수 있을 만큼 넓은 반환 타입 어노테이션을 감지합니다.
 
 ## 이 규칙이 필요한 이유
 
@@ -169,6 +169,16 @@ async function getStatus(x: boolean): Promise<string> {
   },
 }
 ```
+
+## 이 룰의 추론 방식
+
+이 룰은 TypeScript의 타입 체커 API를 사용하여 추론된 반환 타입을 근사합니다. TypeScript 추론 엔진의 완전한 재구현이 **아닙니다**.
+
+- **단일 반환:** `getBaseTypeOfLiteralType`으로 넓힘 (TS 시그니처 추론과 일치)
+- **다중 반환:** 반환 표현식들의 리터럴 유니온 (TS 유니온 추론과 일치)
+- **비동기 함수:** `Promise<T>` / `PromiseLike<T>` 언래핑 후 내부 타입 비교
+
+이 접근 방식은 실제 사용 사례의 대부분을 커버합니다. 알려진 제한 사항은 [검사하지 않는 케이스](#검사하지-않는-케이스)를 참조하세요.
 
 ## 검사하지 않는 케이스
 

@@ -26,7 +26,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     type: 'suggestion',
     docs: {
       description:
-        "Detect return type annotations that are wider than TypeScript's inferred return type",
+        'Detect return type annotations that are misleadingly wider than what your implementation actually returns',
     },
     fixable: 'code',
     hasSuggestions: true,
