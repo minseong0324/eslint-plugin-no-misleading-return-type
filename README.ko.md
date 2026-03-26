@@ -200,6 +200,8 @@ async function getStatus(x: boolean): Promise<string> {
 
 | 케이스 | 이유 |
 |--------|------|
+| `void`, `any`, `unknown`, `never` | 의도적인 이스케이프 해치 |
+| `Promise<void>` / `Promise<any>` | 의도적인 이스케이프 해치 |
 | 게터 / 세터 | 접근자 의미론이 다름 |
 | `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
 | 재귀 함수 및 타입 체커 예외 | 타입 해석 실패 시 (순환 타입, 체커 오류 등) lint 실행 중단 대신 해당 함수를 건너뜀 |

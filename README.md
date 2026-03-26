@@ -200,6 +200,8 @@ Rare scenarios that require specialized handling:
 
 | Case | Reason |
 |------|--------|
+| `void`, `any`, `unknown`, `never` | Intentional escape hatches |
+| `Promise<void>` / `Promise<any>` | Intentional escape hatches |
 | Getters / setters | Accessor semantics differ |
 | Functions with no `return` | Void functions — nothing to compare |
 | Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
