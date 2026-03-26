@@ -182,20 +182,29 @@ This approach covers the vast majority of real-world cases. See [What is not che
 
 ## What is not checked
 
+### Common
+
+Cases you are likely to encounter in everyday code:
+
 | Case | Reason |
 |------|--------|
 | Single-return literal values | Widened by this rule to their base type (e.g. `"idle"` → `string`) to approximate TypeScript's return type inference |
 | Generic functions | Inference depends on call-site |
 | Generator functions | Complex iterator typing |
+| Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
+| `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
+
+### Edge Cases
+
+Rare scenarios that require specialized handling:
+
+| Case | Reason |
+|------|--------|
 | Getters / setters | Accessor semantics differ |
-| `void`, `any`, `unknown`, `never` | Intentional escape hatches |
-| `Promise<void>` / `Promise<any>` | Intentional escape hatches |
 | Functions with no `return` | Void functions — nothing to compare |
 | Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
-| Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
 | Enum literal returns | Enum member types may be over-widened to their base type (e.g. `Status.Idle` → `string` instead of `Status`) |
 | Custom thenables | Only `Promise<T>` and `PromiseLike<T>` are unwrapped |
-| `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
 
 ## When to intentionally widen
 
