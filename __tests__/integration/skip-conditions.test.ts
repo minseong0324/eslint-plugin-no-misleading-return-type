@@ -112,13 +112,13 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       `,
     },
 
-    // throw / bare return
+    // escape hatch: never / void
     {
-      name: 'skip: function body with only throw',
+      name: 'skip: throw-only function with never escape hatch',
       code: `function fail(): never { throw new Error('fail'); }`,
     },
     {
-      name: 'skip: bare return statement',
+      name: 'skip: bare return with void escape hatch',
       code: `function foo(): void { return; }`,
     },
 
