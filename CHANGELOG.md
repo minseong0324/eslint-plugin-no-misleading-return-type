@@ -1,5 +1,11 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.6.1
+
+### Patch Changes
+
+- Extract `containsAny` and `collectReturnTypes` from rule closure into standalone helper modules for improved testability. No behavioral changes. ([#44](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/44))
+
 ## 0.6.0
 
 ### Minor Changes
