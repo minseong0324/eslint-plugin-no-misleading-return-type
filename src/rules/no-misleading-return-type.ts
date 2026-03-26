@@ -1,22 +1,19 @@
 import type { TSESLint, TSESTree } from '@typescript-eslint/utils';
 import { ESLintUtils } from '@typescript-eslint/utils';
 import ts from 'typescript';
+import { collectReturnTypes } from '../helpers/collect-return-types.js';
+import { containsAny } from '../helpers/contains-any.js';
 import { createUnionType } from '../helpers/create-union-type.js';
 import { includesUndefined } from '../helpers/includes-undefined.js';
 import { isEscapeHatch } from '../helpers/is-escape-hatch.js';
 import { isExported } from '../helpers/is-exported.js';
-import { isFunctionLike } from '../helpers/is-function-like.js';
 import { truncateTypeString } from '../helpers/truncate-type-string.js';
+import type { FunctionNode } from '../helpers/types.js';
 
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
     `https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/blob/main/docs/rules/${name}.md`,
 );
-
-type FunctionNode =
-  | TSESTree.FunctionDeclaration
-  | TSESTree.FunctionExpression
-  | TSESTree.ArrowFunctionExpression;
 
 type FixOption = 'suggestion' | 'autofix' | 'none';
 type Options = [{ fix: FixOption }];
@@ -82,66 +79,6 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       // Annotated is wider: inferred fits into annotated, but not vice versa
       // e.g. string (annotated) vs "idle" (inferred): "idle" → string ✓, string → "idle" ✗
       return inferredFitsInAnnotated && !annotatedFitsInInferred;
-    }
-
-    function containsAny(type: ts.Type, visited = new Set<ts.Type>()): boolean {
-      if (visited.has(type)) {
-        return false; // cycle guard for recursive types
-      }
-      visited.add(type);
-
-      if (type.flags & ts.TypeFlags.Any) {
-        return true;
-      }
-
-      if (type.isUnion() || type.isIntersection()) {
-        return type.types.some((t) => containsAny(t, visited));
-      }
-
-      // TypeReference: Promise<T>, Array<T>, Map<K,V>, etc.
-      if (
-        type.flags & ts.TypeFlags.Object &&
-        (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
-      ) {
-        return checker
-          .getTypeArguments(type as ts.TypeReference)
-          .some((t) => containsAny(t, visited));
-      }
-
-      // Object properties: { name: any }, { nested: { deep: any } }
-      if (type.flags & ts.TypeFlags.Object) {
-        for (const prop of type.getProperties()) {
-          const propType = checker.getTypeOfSymbol(prop);
-          if (containsAny(propType, visited)) {
-            return true;
-          }
-        }
-        // Index signatures: { [key: string]: any }
-        const stringIndex = type.getStringIndexType();
-        if (stringIndex && containsAny(stringIndex, visited)) {
-          return true;
-        }
-        const numberIndex = type.getNumberIndexType();
-        if (numberIndex && containsAny(numberIndex, visited)) {
-          return true;
-        }
-      }
-
-      return false;
-    }
-
-    function collectReturnTypes(node: ts.Node, types: ts.Type[]) {
-      // Don't traverse into nested function-like nodes — they have their own return types
-      if (isFunctionLike(node)) {
-        return;
-      }
-
-      if (ts.isReturnStatement(node) && node.expression) {
-        types.push(checker.getTypeAtLocation(node.expression));
-        return;
-      }
-
-      ts.forEachChild(node, (child) => collectReturnTypes(child, types));
     }
 
     function checkFunction(node: FunctionNode) {
@@ -236,7 +173,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           const returnTypes: ts.Type[] = [];
           // Initial call MUST pass the function body, not the function node itself.
           // Passing the function node would trigger isFunctionLike guard → empty array.
-          collectReturnTypes(tsFuncBody, returnTypes);
+          collectReturnTypes(checker, tsFuncBody, returnTypes);
 
           if (returnTypes.length === 0) {
             return;
@@ -265,7 +202,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         return;
       }
 
-      if (containsAny(inferredType)) {
+      if (containsAny(checker, inferredType)) {
         return;
       } // any-contaminated inference is unreliable
 
