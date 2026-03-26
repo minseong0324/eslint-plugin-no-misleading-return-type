@@ -5,6 +5,31 @@ Please follow the procedures and rules below to ensure that all community member
 
 - All contributors must adhere to the [Code of Conduct](https://www.contributor-covenant.org/).
 
+## Development Workflow
+
+```bash
+# Install dependencies
+pnpm install
+
+# Run tests
+pnpm test
+
+# Type check
+pnpm typecheck
+
+# Lint & format
+pnpm check
+
+# Build
+pnpm build
+
+# Check for unused exports
+pnpm knip
+
+# Check package publishing
+pnpm publint
+```
+
 ## Getting Started
 
 - Fork this repository to your personal repository.
