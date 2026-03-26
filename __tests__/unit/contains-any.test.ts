@@ -1,56 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import ts from 'typescript';
+import { containsAny } from '../../src/helpers/contains-any.js';
 import { createTypeResolver } from './helpers/create-type.js';
-
-// Mirrors containsAny from the rule's create() closure
-function containsAny(
-  checker: ReturnType<typeof createTypeResolver>['checker'],
-  type: ts.Type,
-  visited = new Set<ts.Type>(),
-): boolean {
-  if (visited.has(type)) {
-    return false;
-  }
-  visited.add(type);
-
-  if (type.flags & ts.TypeFlags.Any) {
-    return true;
-  }
-
-  if (type.isUnion() || type.isIntersection()) {
-    return type.types.some((t) => containsAny(checker, t, visited));
-  }
-
-  if (
-    type.flags & ts.TypeFlags.Object &&
-    (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
-  ) {
-    return checker
-      .getTypeArguments(type as ts.TypeReference)
-      .some((t) => containsAny(checker, t, visited));
-  }
-
-  // Object properties
-  if (type.flags & ts.TypeFlags.Object) {
-    for (const prop of type.getProperties()) {
-      const propType = checker.getTypeOfSymbol(prop);
-      if (containsAny(checker, propType, visited)) {
-        return true;
-      }
-    }
-    const stringIndex = type.getStringIndexType();
-    if (stringIndex && containsAny(checker, stringIndex, visited)) {
-      return true;
-    }
-    const numberIndex = type.getNumberIndexType();
-    if (numberIndex && containsAny(checker, numberIndex, visited)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 describe('containsAny', () => {
   it('any contains any', () => {

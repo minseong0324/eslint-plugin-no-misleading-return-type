@@ -1,10 +1,6 @@
 import type { ESLintUtils, TSESTree } from '@typescript-eslint/utils';
 import ts from 'typescript';
-
-type FunctionNode =
-  | TSESTree.FunctionDeclaration
-  | TSESTree.FunctionExpression
-  | TSESTree.ArrowFunctionExpression;
+import type { FunctionNode } from './types.js';
 
 type ParserServices = ReturnType<typeof ESLintUtils.getParserServices>;
 

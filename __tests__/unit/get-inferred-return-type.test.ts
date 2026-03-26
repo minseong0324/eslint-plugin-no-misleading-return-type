@@ -1,24 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import ts from 'typescript';
-import { isFunctionLike } from '../../src/helpers/is-function-like.js';
+import { collectReturnTypes } from '../../src/helpers/collect-return-types.js';
 import { getFunctionFromCode } from './helpers/create-function.js';
-
-// Mirrors collectReturnTypes from the rule's create() closure
-function collectReturnTypes(
-  checker: ts.TypeChecker,
-  node: ts.Node,
-  types: ts.Type[],
-) {
-  if (isFunctionLike(node)) {
-    return;
-  }
-  if (ts.isReturnStatement(node) && node.expression) {
-    types.push(checker.getTypeAtLocation(node.expression));
-    return;
-  }
-  ts.forEachChild(node, (child) => collectReturnTypes(checker, child, types));
-}
 
 function getInferredTypes(code: string, funcName: string) {
   const { node, checker } = getFunctionFromCode(code, funcName);
