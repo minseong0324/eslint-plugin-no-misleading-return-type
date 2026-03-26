@@ -67,6 +67,18 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
     },
+    {
+      name: 'skip: overloaded class method',
+      code: `
+        class Foo {
+          method(x: string): string;
+          method(x: number): number;
+          method(x: string | number): string | number {
+            return x;
+          }
+        }
+      `,
+    },
   ],
   invalid: [
     {

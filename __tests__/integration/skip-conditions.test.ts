@@ -112,6 +112,16 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       `,
     },
 
+    // throw / bare return
+    {
+      name: 'skip: function body with only throw',
+      code: `function fail(): never { throw new Error('fail'); }`,
+    },
+    {
+      name: 'skip: bare return statement',
+      code: `function foo(): void { return; }`,
+    },
+
     // void / implicit undefined
     {
       name: 'void function (no return statements) → skip',

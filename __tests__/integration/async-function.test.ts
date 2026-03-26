@@ -66,6 +66,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'PromiseLike<string> with single return — widened, no warning',
       code: `async function f(): PromiseLike<string> { return "ok"; }`,
     },
+    {
+      name: 'async function with exact literal union annotation matching inferred union — no warning',
+      code: `
+        async function getStatus(x: boolean): Promise<"a" | "b"> {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+    },
   ],
   invalid: [
     {

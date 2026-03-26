@@ -547,6 +547,37 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       ],
     },
 
+    // ── CJS-style export = (Case H) ───────────────────────────
+    {
+      name: 'fix: autofix on export = function — falls back to suggestion',
+      options: [{ fix: 'autofix' }],
+      code: `export = function foo(): string { if (true) return "a"; return "b"; }`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'narrowReturnType',
+              output: `export = function foo(): "a" | "b" { if (true) return "a"; return "b"; }`,
+            },
+          ],
+        },
+      ],
+    },
+
+    // ── fix: none on exported function ────────────────────────
+    {
+      name: 'fix: none on exported function',
+      options: [{ fix: 'none' }],
+      code: `
+        export function foo(x: boolean): string {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+      errors: [{ messageId: 'misleadingReturnType' }],
+    },
+
     // ── Non-exported: autofix still applies ───────────────────
     {
       name: 'fix: autofix on non-exported function — autofix applies normally',
