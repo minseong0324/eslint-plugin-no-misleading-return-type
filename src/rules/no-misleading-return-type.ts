@@ -16,7 +16,7 @@ const createRule = ESLintUtils.RuleCreator(
 );
 
 type FixOption = 'suggestion' | 'autofix' | 'none';
-type Options = [{ fix: FixOption }];
+type Options = [{ fix: FixOption; escapeHatchTypes?: string[] }];
 
 const PROMISE_NAMES = new Set(['Promise', 'PromiseLike']);
 type MessageIds =
@@ -49,15 +49,24 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             enum: ['suggestion', 'autofix', 'none'],
             default: 'suggestion',
           },
+          escapeHatchTypes: {
+            type: 'array',
+            items: { type: 'string', minLength: 1 },
+            uniqueItems: true,
+            default: [],
+          },
         },
         additionalProperties: false,
       },
     ],
   },
-  defaultOptions: [{ fix: 'suggestion' }],
+  defaultOptions: [{ fix: 'suggestion', escapeHatchTypes: [] }],
   create(context) {
     const parserServices = ESLintUtils.getParserServices(context);
     const checker = parserServices.program.getTypeChecker();
+    const customEscapeHatches = new Set(
+      context.options[0]?.escapeHatchTypes ?? [],
+    );
 
     // Captured via closure — all checker-dependent logic lives here
     // "inferred" here means the approximated function return type:
@@ -128,6 +137,12 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       }
       const annotatedType = checker.getTypeFromTypeNode(tsReturnTypeNode);
       if (isEscapeHatch(annotatedType)) {
+        return;
+      }
+      if (
+        annotatedType.symbol &&
+        customEscapeHatches.has(annotatedType.symbol.name)
+      ) {
         return;
       }
 
@@ -230,6 +245,12 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         if (isEscapeHatch(annotatedInner)) {
           return;
         } // Promise<void>, Promise<any>, etc.
+        if (
+          annotatedInner.symbol &&
+          customEscapeHatches.has(annotatedInner.symbol.name)
+        ) {
+          return;
+        }
 
         // Also unwrap inferred type if it's Promise<T> or PromiseLike<T>
         // (e.g., return someAsyncFn()). In async functions, returning a thenable
