@@ -9,7 +9,7 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       code: `function foo() { return "idle"; }`,
     },
     {
-      name: 'overload declaration (no body) → skip',
+      name: 'overload with any return type → skipped by escape hatch (not overload detection)',
       code: `
         function process(x: string): string;
         function process(x: number): number;
