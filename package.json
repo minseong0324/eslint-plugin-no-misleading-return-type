@@ -1,6 +1,6 @@
 {
   "name": "eslint-plugin-no-misleading-return-type",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "ESLint rule to detect return type annotations that are misleadingly wider than what your implementation actually returns",
   "type": "module",
   "main": "./dist/index.cjs",
