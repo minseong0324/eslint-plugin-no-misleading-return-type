@@ -144,6 +144,17 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         // differ from regular functions (no explicit call-site inference).
         return;
       }
+      if (
+        node.parent?.type === 'MethodDefinition' &&
+        node.parent.override === true
+      ) {
+        // override method — v1 skip
+        // Override methods must be compatible with the parent class return type,
+        // so flagging them causes false positives the developer cannot fix.
+        // TODO(v2): Could check if the override uses a covariant (narrowed) return
+        // type and only skip when the annotated type exactly matches the parent.
+        return;
+      }
       if (node.generator) {
         // generators — v1 skip
         // TODO(v2): Generator return type is Iterator<T, TReturn, TNext>.
