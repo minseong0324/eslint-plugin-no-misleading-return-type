@@ -71,6 +71,24 @@ You can submit a PR directly. All commit messages and pull request titles should
 - Maintainers or project managers will review the PR and provide feedback if changes are necessary.
 - If there are any modifications needed based on feedback, please update your branch with additional commits.
 
+## Architecture Decision Records
+
+### Why `getBaseTypeOfLiteralType` for widening
+
+TypeScript widens single literal returns (e.g., `"idle"` → `string`) when inferring the return type of a function. We replicate this by calling `checker.getBaseTypeOfLiteralType()` on single-return values. Multi-return unions are kept as-is because TS preserves literal unions.
+
+### Why `getUnionType` internal API
+
+`checker.getUnionType()` is not part of the public TypeScript API, but it's the only way to programmatically create union types from an array of `ts.Type[]`. We guard its use with a `typeof` check and skip safely if unavailable.
+
+### Why escape hatches are hardcoded
+
+`any`, `unknown`, `never`, and `void` are always escape hatches because they represent intentionally opaque types. Users can extend this list via the `escapeHatchTypes` option.
+
+### Why contextual typing is not handled
+
+When a function is assigned to a typed variable, TypeScript uses contextual typing which can widen the inferred type before comparison. Solving this would require resolving contextual types from the assignment target, which adds significant complexity for a narrow set of cases.
+
 ## License
 
 All code contributed to this project will be distributed under the [project's LICENSE](./LICENSE).
