@@ -4,13 +4,16 @@ import { ruleTester } from './_setup.js';
 ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
   valid: [
     {
-      name: 'override method with parent-matching return type → skip',
+      name: 'override method with wider return type (single literal) → skip',
       code: `
     class Base {
       getStatus(): string { return 'idle'; }
     }
     class Child extends Base {
-      override getStatus(): string { return 'active'; }
+      override getStatus(): string {
+        if (Math.random() > 0.5) return 'active';
+        return 'inactive';
+      }
     }
   `,
     },
@@ -43,13 +46,16 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
   `,
     },
     {
-      name: 'async override method → skip',
+      name: 'async override method with wider return type → skip',
       code: `
         class Base {
           async fetchData(): Promise<string> { return 'default'; }
         }
         class Child extends Base {
-          async override fetchData(): Promise<string> { return 'fetched'; }
+          async override fetchData(): Promise<string> {
+            if (Math.random() > 0.5) return 'cached';
+            return 'fetched';
+          }
         }
       `,
     },
