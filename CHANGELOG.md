@@ -1,5 +1,19 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.7.0
+
+### Minor Changes
+
+- Add `strict` (error severity) and `autofix` (warn + autofix) config presets alongside existing `recommended`. ([#54](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/54))
+
+### Patch Changes
+
+- Improve error message to explain impact on callers while keeping actionable guidance. ([#55](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/55))
+
+- Skip overloaded function implementations to avoid false positives. Overload implementations intentionally use wider return types to cover all signatures. ([#47](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/47))
+
+- Skip `override` methods to avoid false positives. Override methods must match parent class return type, so wider annotations are intentional. ([#48](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/48))
+
 ## 0.6.2
 
 ### Patch Changes
