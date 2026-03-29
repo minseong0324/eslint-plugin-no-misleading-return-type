@@ -39,11 +39,12 @@ jobs:
         run: pnpm knip
 
   test:
-    name: Test (TypeScript ${{ matrix.typescript-version }})
+    name: Test (TS ${{ matrix.typescript-version }}, ESLint ${{ matrix.eslint-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
         typescript-version: ['5.0', '5.1', '5.2', '5.3', '5.4', '5.5', '5.6', '5.7', '5.8', '5.9']
+        eslint-version: ['9', '10']
       fail-fast: false
 
     steps:
@@ -64,6 +65,9 @@ jobs:
 
       - name: Install TypeScript ${{ matrix.typescript-version }}
         run: pnpm add -D typescript@${{ matrix.typescript-version }}
+
+      - name: Install ESLint ${{ matrix.eslint-version }}
+        run: pnpm add -D eslint@${{ matrix.eslint-version }}
 
       - name: Test
         run: pnpm test
