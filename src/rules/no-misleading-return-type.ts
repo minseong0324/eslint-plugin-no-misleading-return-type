@@ -21,6 +21,7 @@ type Options = [{ fix: FixOption }];
 const PROMISE_NAMES = new Set(['Promise', 'PromiseLike']);
 type MessageIds =
   | 'misleadingReturnType'
+  | 'misleadingReturnTypeNoSuggestion'
   | 'removeReturnType'
   | 'narrowReturnType';
 
@@ -37,6 +38,8 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     messages: {
       misleadingReturnType:
         'Return type `{{annotated}}` is wider than the inferred type `{{inferred}}`. Remove the annotation or narrow it.',
+      misleadingReturnTypeNoSuggestion:
+        'Return type `{{annotated}}` is wider than inferred `{{inferred}}`. Manually narrow the return type annotation.',
       removeReturnType: 'Remove return type annotation',
       narrowReturnType: 'Narrow return type to `{{inferred}}`',
     },
@@ -341,11 +344,11 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       }
 
       // If no suggestions are available (exported + unsafe type string),
-      // fall back to report-only.
+      // fall back to report-only with a message that guides manual action.
       if (suggestions.length === 0) {
         return context.report({
           node: node.returnType,
-          messageId: 'misleadingReturnType',
+          messageId: 'misleadingReturnTypeNoSuggestion',
           data: reportData,
         });
       }
