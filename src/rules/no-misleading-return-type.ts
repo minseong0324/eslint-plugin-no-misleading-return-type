@@ -4,11 +4,33 @@ import ts from 'typescript';
 import { collectReturnTypes } from '../helpers/collect-return-types.js';
 import { containsAny } from '../helpers/contains-any.js';
 import { createUnionType } from '../helpers/create-union-type.js';
+import { hasConstAssertion } from '../helpers/has-const-assertion.js';
 import { includesUndefined } from '../helpers/includes-undefined.js';
 import { isEscapeHatch } from '../helpers/is-escape-hatch.js';
 import { isExported } from '../helpers/is-exported.js';
+import { isFunctionLike } from '../helpers/is-function-like.js';
 import { truncateTypeString } from '../helpers/truncate-type-string.js';
 import type { FunctionNode } from '../helpers/types.js';
+
+// Mirrors collectReturnTypes: only counts returns with an expression (skips bare `return;`).
+// If collectReturnTypes changes its collection logic, update here accordingly.
+function findSingleReturnExpression(
+  block: ts.Block,
+): ts.Expression | undefined {
+  let found: ts.Expression | undefined;
+  let count = 0;
+  function visit(node: ts.Node): void {
+    if (isFunctionLike(node)) return; // don't descend into nested functions
+    if (ts.isReturnStatement(node) && node.expression) {
+      found = node.expression;
+      count++;
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(block);
+  return count === 1 ? found : undefined;
+}
 
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
@@ -144,17 +166,13 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           // Concise body arrow: the body IS the expression.
           // Widen literal types to match TS return type inference,
           // unless `as const` assertion is present (preserves literals).
-          const tsBody = parserServices.esTreeNodeToTSNodeMap.get(
+          const tsBodyExpr = parserServices.esTreeNodeToTSNodeMap.get(
             node.body as TSESTree.Expression,
           );
-          const rawType = checker.getTypeAtLocation(tsBody);
-          const bodyExpr = node.body as TSESTree.Expression;
-          const isConstAssertion =
-            bodyExpr.type === 'TSAsExpression' &&
-            bodyExpr.typeAnnotation.type === 'TSTypeReference' &&
-            bodyExpr.typeAnnotation.typeName.type === 'Identifier' &&
-            bodyExpr.typeAnnotation.typeName.name === 'const';
-          inferredType = isConstAssertion
+          const rawType = checker.getTypeAtLocation(tsBodyExpr);
+          const isConst =
+            ts.isExpression(tsBodyExpr) && hasConstAssertion(tsBodyExpr);
+          inferredType = isConst
             ? rawType
             : checker.getBaseTypeOfLiteralType(rawType);
         } else {
@@ -181,12 +199,18 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
 
           if (returnTypes.length === 1) {
             const singleType = returnTypes[0];
+            const returnExpr = findSingleReturnExpression(
+              tsFuncBody as ts.Block,
+            );
+            const isConst = returnExpr != null && hasConstAssertion(returnExpr);
             // If the single return is already a union (e.g. ternary `x ? "a" : "b"`),
             // skip widening — TS preserves literal unions in this case.
+            // If `as const` / `<const>` / `(... as const)` is present, preserve literal.
             // Otherwise widen literal: TS widens single literal returns (e.g. "idle" → string).
-            inferredType = singleType.isUnion()
-              ? singleType
-              : checker.getBaseTypeOfLiteralType(singleType);
+            inferredType =
+              singleType.isUnion() || isConst
+                ? singleType
+                : checker.getBaseTypeOfLiteralType(singleType);
           } else {
             const union = createUnionType(checker, returnTypes);
             if (!union) {
