@@ -32,6 +32,26 @@ function findSingleReturnExpression(
   return count === 1 ? found : undefined;
 }
 
+function isOverloadImplementation(
+  tsFunctionNode: ts.Node,
+  checker: ts.TypeChecker,
+): boolean {
+  if (
+    (ts.isFunctionDeclaration(tsFunctionNode) ||
+      ts.isMethodDeclaration(tsFunctionNode)) &&
+    tsFunctionNode.name
+  ) {
+    const symbol = checker.getSymbolAtLocation(tsFunctionNode.name);
+    if (symbol?.declarations && symbol.declarations.length > 1) {
+      return symbol.declarations.some(
+        (d) =>
+          (ts.isFunctionDeclaration(d) || ts.isMethodDeclaration(d)) && !d.body,
+      );
+    }
+  }
+  return false;
+}
+
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
     `https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/blob/main/docs/rules/${name}.md`,
@@ -140,6 +160,11 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
 
       // Phase 2: TS node mapping
       const tsFunctionNode = parserServices.esTreeNodeToTSNodeMap.get(node);
+
+      // Overload implementation — skip (wider return type is intentional)
+      if (isOverloadImplementation(tsFunctionNode, checker)) {
+        return;
+      }
 
       // Phase 3: annotated type resolution
       const tsReturnTypeNode = parserServices.esTreeNodeToTSNodeMap.get(
