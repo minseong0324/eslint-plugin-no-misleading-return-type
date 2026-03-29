@@ -1,5 +1,11 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.6.2
+
+### Patch Changes
+
+- Fix `as const` return widening for block body, angle bracket (`<const>`), and parenthesized forms. Previously only concise arrow `as const` was detected. ([#46](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/46))
+
 ## 0.6.1
 
 ### Patch Changes
