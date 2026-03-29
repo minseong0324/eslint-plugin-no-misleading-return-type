@@ -56,7 +56,9 @@ export function isExported(
   };
 
   // Helper: resolve a TS variable declarator's name for symbol lookup.
-  const isVarDeclExported = (esVarDecl: TSESTree.VariableDeclarator): boolean => {
+  const isVarDeclExported = (
+    esVarDecl: TSESTree.VariableDeclarator,
+  ): boolean => {
     const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(esVarDecl);
     if (
       ts.isVariableDeclaration(tsVarDecl) &&
