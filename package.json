@@ -37,7 +37,8 @@
     "publint": "publint",
     "changeset": "changeset",
     "changeset:version": "changeset version && pnpm install --no-frozen-lockfile && pnpm format",
-    "changeset:publish": "changeset publish"
+    "changeset:publish": "changeset publish",
+    "bench": "tsx bench/generate-fixture.ts && tsx bench/run.ts"
   },
   "engines": {
     "node": "^18.18.0 || ^20.9.0 || >=21.1.0"

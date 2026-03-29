@@ -38,5 +38,8 @@ yarn-debug.log*
 yarn-error.log*
 *.log
 
+# benchmark
+bench/fixtures/large.ts
+
 # typescript
 *.tsbuildinfo
