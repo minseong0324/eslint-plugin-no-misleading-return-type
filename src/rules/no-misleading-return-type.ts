@@ -78,7 +78,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     hasSuggestions: true,
     messages: {
       misleadingReturnType:
-        'Return type `{{annotated}}` is wider than the inferred type `{{inferred}}`. Remove the annotation or narrow it.',
+        'Return type `{{annotated}}` is wider than inferred `{{inferred}}`, hiding precise types from callers. Remove the annotation or narrow it.',
       removeReturnType: 'Remove return type annotation',
       narrowReturnType: 'Narrow return type to `{{inferred}}`',
     },
