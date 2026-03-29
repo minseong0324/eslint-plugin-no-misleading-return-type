@@ -20,6 +20,21 @@ export const configs = {
       'no-misleading-return-type/no-misleading-return-type': 'warn' as const,
     },
   },
+  strict: {
+    plugins: { 'no-misleading-return-type': plugin },
+    rules: {
+      'no-misleading-return-type/no-misleading-return-type': 'error' as const,
+    },
+  },
+  autofix: {
+    plugins: { 'no-misleading-return-type': plugin },
+    rules: {
+      'no-misleading-return-type/no-misleading-return-type': [
+        'warn' as const,
+        { fix: 'autofix' as const },
+      ],
+    },
+  },
 };
 
 export default { ...plugin, configs };
