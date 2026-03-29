@@ -84,6 +84,36 @@ export default [
 > If you see `TypeError: Cannot read properties of undefined (reading 'program')`,
 > type information is not configured. Check your `parserOptions`.
 
+## Config Presets
+
+Instead of manual rule configuration, you can use one of the built-in presets.
+**Note:** You still need to configure `languageOptions` with `@typescript-eslint/parser` and type information.
+
+```ts
+// eslint.config.ts
+import noMisleadingReturnType from "eslint-plugin-no-misleading-return-type";
+import parser from "@typescript-eslint/parser";
+
+export default [
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    languageOptions: {
+      parser,
+      parserOptions: { projectService: { allowDefaultProject: ["*.ts", "*.tsx"] } },
+    },
+    ...noMisleadingReturnType.configs.recommended, // warn + suggestion (default)
+    // ...noMisleadingReturnType.configs.strict,    // error + suggestion
+    // ...noMisleadingReturnType.configs.autofix,   // warn + autofix
+  },
+];
+```
+
+| Preset | Severity | Fix mode |
+|--------|----------|----------|
+| `recommended` | `warn` | `suggestion` |
+| `strict` | `error` | `suggestion` |
+| `autofix` | `warn` | `autofix` |
+
 ## Rule: `no-misleading-return-type`
 
 ### What it checks
