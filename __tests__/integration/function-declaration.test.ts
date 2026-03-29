@@ -24,7 +24,7 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       code: `function getVal(): unknown { return "idle"; }`,
     },
     {
-      name: 'overload declaration signature (no body)',
+      name: 'overload with any return type → skipped by escape hatch (not overload detection)',
       code: `
         function process(x: string): string;
         function process(x: number): number;

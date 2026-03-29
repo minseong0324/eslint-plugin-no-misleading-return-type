@@ -68,7 +68,7 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       `,
     },
     {
-      name: 'skip: overloaded class method',
+      name: 'overloaded class method → passes because inferred matches annotated (not overload detection)',
       code: `
         class Foo {
           method(x: string): string;
