@@ -5,20 +5,27 @@ import { configs } from '../../src/index.js';
 describe('config presets', () => {
   it('recommended config sets warn severity', () => {
     assert.equal(
-      configs.recommended.rules['no-misleading-return-type/no-misleading-return-type'],
+      configs.recommended.rules[
+        'no-misleading-return-type/no-misleading-return-type'
+      ],
       'warn',
     );
   });
 
   it('strict config sets error severity', () => {
     assert.equal(
-      configs.strict.rules['no-misleading-return-type/no-misleading-return-type'],
+      configs.strict.rules[
+        'no-misleading-return-type/no-misleading-return-type'
+      ],
       'error',
     );
   });
 
   it('autofix config sets warn with autofix option', () => {
-    const rule = configs.autofix.rules['no-misleading-return-type/no-misleading-return-type'];
+    const rule =
+      configs.autofix.rules[
+        'no-misleading-return-type/no-misleading-return-type'
+      ];
     assert.ok(Array.isArray(rule));
     assert.equal(rule[0], 'warn');
     assert.deepEqual(rule[1], { fix: 'autofix' });
