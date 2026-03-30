@@ -96,8 +96,22 @@ function isOnlyPropertyLiteralWidening(
     const wProp = wider.getProperty(nProp.name);
     if (!wProp) continue; // narrower has extra property — not a widening issue
 
+    // Optionality difference is genuine widening, not a literal artifact
+    const wOptional = !!(wProp.flags & ts.SymbolFlags.Optional);
+    const nOptional = !!(nProp.flags & ts.SymbolFlags.Optional);
+    if (wOptional !== nOptional) return false;
+
     const wType = checker.getTypeOfSymbol(wProp);
     const nType = checker.getTypeOfSymbol(nProp);
+
+    // Skip inherited method properties (e.g., Array.push on tuples).
+    // Their signatures differ due to element type parameters, not user widening.
+    if (
+      nType.getCallSignatures().length > 0 ||
+      nType.getConstructSignatures().length > 0
+    ) {
+      continue;
+    }
 
     // If already equivalent, this property is fine
     if (
@@ -113,18 +127,6 @@ function isOnlyPropertyLiteralWidening(
       checker.isTypeAssignableTo(wType, widenedN) &&
       checker.isTypeAssignableTo(widenedN, wType)
     ) {
-      hasWidening = true;
-      continue;
-    }
-
-    // For union property types (e.g., `data: string | null`):
-    // check if narrower's type is assignable to wider's property type.
-    // This handles cases like `data: null` vs `data: string | null`.
-    // Skip this check if optionality differs (wider is optional, narrower is
-    // required) — optional properties are intentionally wider, not a widening artifact.
-    const wOptional = !!(wProp.flags & ts.SymbolFlags.Optional);
-    const nOptional = !!(nProp.flags & ts.SymbolFlags.Optional);
-    if (wOptional === nOptional && checker.isTypeAssignableTo(nType, wType)) {
       hasWidening = true;
       continue;
     }

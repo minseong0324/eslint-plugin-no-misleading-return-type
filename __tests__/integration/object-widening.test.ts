@@ -93,16 +93,6 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       `,
     },
 
-    // null in union property: { data: null } is assignable to { data: string | null }
-    // and is not a misleading widening — null is a valid branch of the union.
-    {
-      name: 'null property in union: { data: string | null } matches { data: null }',
-      code: `
-        type R = { data: string | null };
-        function f(): R { return { data: null }; }
-      `,
-    },
-
     // Mixed boolean true/false multi-return
     {
       name: 'mixed boolean multi-return: true and false both match boolean',
