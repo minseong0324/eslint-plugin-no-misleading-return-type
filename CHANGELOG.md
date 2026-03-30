@@ -1,5 +1,15 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.7.2
+
+### Patch Changes
+
+- Fix tuple element widening false positive ([#68](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/68))
+
+  - `[true, "hello"]` returning as `[boolean, string]` no longer triggers a false positive
+  - Uses `checker.isTupleType()` and `getTypeArguments()` to compare tuple element types directly, avoiding inherited Array prototype method signature mismatches
+  - Adds `hasWidening` flag to require at least one property with actual literal widening before suppressing warnings
+
 ## 0.7.1
 
 ### Patch Changes
