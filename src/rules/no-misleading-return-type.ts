@@ -32,6 +32,100 @@ function findSingleReturnExpression(
   return count === 1 ? found : undefined;
 }
 
+function findReturnExpressions(block: ts.Block): ts.Expression[] {
+  const expressions: ts.Expression[] = [];
+  function visit(node: ts.Node): void {
+    if (isFunctionLike(node)) return;
+    if (ts.isReturnStatement(node) && node.expression) {
+      expressions.push(node.expression);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(block);
+  return expressions;
+}
+
+/**
+ * Checks if the difference between two types is solely due to object property
+ * literal widening (e.g., `false` → `boolean`, `42` → `number`).
+ *
+ * Without `as const`, TypeScript widens literal types in object literal properties
+ * when inferring return types. However, `checker.getTypeAtLocation()` may return
+ * the narrow (pre-widening) type for boolean and numeric literals in object
+ * properties. This function detects when the annotated type is only "wider"
+ * because of this widening difference, avoiding false positives.
+ */
+function isOnlyPropertyLiteralWidening(
+  checker: ts.TypeChecker,
+  wider: ts.Type,
+  narrower: ts.Type,
+  depth = 0,
+): boolean {
+  if (depth > 3) return false; // Prevent deep recursion
+
+  // Don't attempt to decompose union annotated types — too complex
+  if (wider.isUnion()) return false;
+
+  // Handle union inferred types — each member must match
+  if (narrower.isUnion()) {
+    return narrower.types.every((t) =>
+      isOnlyPropertyLiteralWidening(checker, wider, t, depth),
+    );
+  }
+
+  // Both must be object types
+  if (
+    !(wider.flags & ts.TypeFlags.Object) ||
+    !(narrower.flags & ts.TypeFlags.Object)
+  ) {
+    return false;
+  }
+
+  const widerProps = checker.getPropertiesOfType(wider);
+  const narrowerProps = checker.getPropertiesOfType(narrower);
+
+  if (widerProps.length !== narrowerProps.length) return false;
+  if (widerProps.length === 0) return false;
+
+  for (const wProp of widerProps) {
+    const nProp = narrowerProps.find((p) => p.name === wProp.name);
+    if (!nProp) return false;
+
+    // Check optionality matches
+    const wOptional = !!(wProp.flags & ts.SymbolFlags.Optional);
+    const nOptional = !!(nProp.flags & ts.SymbolFlags.Optional);
+    if (wOptional !== nOptional) return false;
+
+    const wType = checker.getTypeOfSymbol(wProp);
+    const nType = checker.getTypeOfSymbol(nProp);
+
+    // If already equivalent, this property is fine
+    if (
+      checker.isTypeAssignableTo(wType, nType) &&
+      checker.isTypeAssignableTo(nType, wType)
+    ) {
+      continue;
+    }
+
+    // Try literal widening: getBaseTypeOfLiteralType(false) → boolean
+    const widenedN = checker.getBaseTypeOfLiteralType(nType);
+    if (
+      checker.isTypeAssignableTo(wType, widenedN) &&
+      checker.isTypeAssignableTo(widenedN, wType)
+    ) {
+      continue;
+    }
+
+    // Try recursive check for nested object types
+    if (!isOnlyPropertyLiteralWidening(checker, wType, nType, depth + 1)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 function isOverloadImplementation(
   tsFunctionNode: ts.Node,
   checker: ts.TypeChecker,
@@ -194,6 +288,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       // TypeScript's return type inference (which widens lone literal returns).
       // Multi-return unions are kept as-is — TS preserves literal unions.
       let inferredType: ts.Type;
+      let hasAnyConstReturn = false;
       try {
         if (
           node.type === 'ArrowFunctionExpression' &&
@@ -208,6 +303,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           const rawType = checker.getTypeAtLocation(tsBodyExpr);
           const isConst =
             ts.isExpression(tsBodyExpr) && hasConstAssertion(tsBodyExpr);
+          hasAnyConstReturn = isConst;
           inferredType = isConst
             ? rawType
             : checker.getBaseTypeOfLiteralType(rawType);
@@ -239,6 +335,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
               tsFuncBody as ts.Block,
             );
             const isConst = returnExpr != null && hasConstAssertion(returnExpr);
+            hasAnyConstReturn = isConst;
             // If the single return is already a union (e.g. ternary `x ? "a" : "b"`),
             // skip widening — TS preserves literal unions in this case.
             // If `as const` / `<const>` / `(... as const)` is present, preserve literal.
@@ -253,6 +350,10 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
               return; // Internal API unavailable — skip safely
             }
             inferredType = union;
+            const returnExprs = findReturnExpressions(tsFuncBody as ts.Block);
+            hasAnyConstReturn = returnExprs.some((expr) =>
+              hasConstAssertion(expr),
+            );
           }
         }
       } catch (_e) {
@@ -316,6 +417,18 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         if (!isAnnotatedWiderThanInferred(annotatedInner, effectiveInferred)) {
           return;
         }
+        // Skip false positives from object literal property widening (e.g., false → boolean)
+        // without as const. TypeScript widens these in return type inference.
+        if (
+          !hasAnyConstReturn &&
+          isOnlyPropertyLiteralWidening(
+            checker,
+            annotatedInner,
+            effectiveInferred,
+          )
+        ) {
+          return;
+        }
       } else {
         if (
           includesUndefined(annotatedType) &&
@@ -324,6 +437,18 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           return; // implicit undefined path heuristic
         }
         if (!isAnnotatedWiderThanInferred(annotatedType, effectiveInferred)) {
+          return;
+        }
+        // Skip false positives from object literal property widening (e.g., false → boolean)
+        // without as const. TypeScript widens these in return type inference.
+        if (
+          !hasAnyConstReturn &&
+          isOnlyPropertyLiteralWidening(
+            checker,
+            annotatedType,
+            effectiveInferred,
+          )
+        ) {
           return;
         }
       }
