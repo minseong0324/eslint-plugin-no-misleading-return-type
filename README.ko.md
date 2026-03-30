@@ -84,6 +84,36 @@ export default [
 > `TypeError: Cannot read properties of undefined (reading 'program')` 오류가 발생하면
 > 타입 정보가 설정되지 않은 것입니다. `parserOptions`를 확인하세요.
 
+## 설정 프리셋
+
+수동 규칙 설정 대신 내장 프리셋 중 하나를 사용할 수 있습니다.
+**참고:** `@typescript-eslint/parser`와 타입 정보가 포함된 `languageOptions`는 여전히 직접 설정해야 합니다.
+
+```ts
+// eslint.config.ts
+import noMisleadingReturnType from "eslint-plugin-no-misleading-return-type";
+import parser from "@typescript-eslint/parser";
+
+export default [
+  {
+    files: ["**/*.ts", "**/*.tsx"],
+    languageOptions: {
+      parser,
+      parserOptions: { projectService: { allowDefaultProject: ["*.ts", "*.tsx"] } },
+    },
+    ...noMisleadingReturnType.configs.recommended, // warn + suggestion (기본값)
+    // ...noMisleadingReturnType.configs.strict,    // error + suggestion
+    // ...noMisleadingReturnType.configs.autofix,   // warn + autofix
+  },
+];
+```
+
+| 프리셋 | 심각도 | 수정 모드 |
+|--------|--------|-----------|
+| `recommended` | `warn` | `suggestion` |
+| `strict` | `error` | `suggestion` |
+| `autofix` | `warn` | `autofix` |
+
 ## 규칙: `no-misleading-return-type`
 
 ### 확인 대상
@@ -220,6 +250,18 @@ function getStatus(loading: boolean): string {
   return 'idle';
 }
 ```
+
+## 문제 해결
+
+**규칙이 아무것도 보고하지 않는 경우**
+- 타입 정보가 설정되어 있는지 확인하세요 (`parserOptions`에 `projectService` 또는 `project` 설정)
+- 파일이 TypeScript 프로젝트에 포함되어 있는지 확인하세요
+- 반환 타입 어노테이션이 없는 함수는 의도적으로 건너뜁니다
+
+**규칙이 너무 많이 보고하는 경우**
+- 단일 리터럴 반환 (예: `return "idle"`)은 TS 추론을 근사하기 위해 넓혀짐 — 이는 의도된 동작입니다
+- `as const` 없는 객체 리터럴 프로퍼티는 컨텍스트 타입으로 처리될 수 있습니다 — 정확한 타입을 원하면 `as const`를 사용하세요
+- 의도적으로 넓은 반환 타입 (예: 안정적인 API 계약)에는 `eslint-disable`을 사용하세요
 
 ## 라이센스
 
