@@ -83,6 +83,76 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         async function f(): Promise<Result> { return { ok: true, data: "hi" }; }
       `,
     },
+
+    // Tuple element widening: TypeScript widens tuple element literals
+    // just like object properties. [true, "hello"] should match [boolean, string].
+    {
+      name: 'tuple element widening: [boolean, string] matches [true, "hello"]',
+      code: `
+        function f(): [boolean, string] { return [true, "hello"]; }
+      `,
+    },
+
+    // null in union property: { data: null } is assignable to { data: string | null }
+    // and is not a misleading widening — null is a valid branch of the union.
+    {
+      name: 'null property in union: { data: string | null } matches { data: null }',
+      code: `
+        type R = { data: string | null };
+        function f(): R { return { data: null }; }
+      `,
+    },
+
+    // Mixed boolean true/false multi-return
+    {
+      name: 'mixed boolean multi-return: true and false both match boolean',
+      code: `
+        type Result = { ok: boolean; msg: string };
+        function f(x: boolean): Result {
+          if (x) return { ok: true, msg: "yes" };
+          return { ok: false, msg: "no" };
+        }
+      `,
+    },
+
+    // Multiple boolean properties
+    {
+      name: 'multiple boolean properties all widened',
+      code: `
+        type Flags = { a: boolean; b: boolean; c: boolean };
+        function f(): Flags { return { a: true, b: false, c: true }; }
+      `,
+    },
+
+    // Deeply nested (3 levels)
+    {
+      name: 'deeply nested boolean (3 levels)',
+      code: `
+        type Deep = { l1: { l2: { active: boolean } } };
+        function f(): Deep { return { l1: { l2: { active: true } } }; }
+      `,
+    },
+
+    // Interface (not just type alias)
+    {
+      name: 'interface with boolean property',
+      code: `
+        interface IResult { ok: boolean; msg: string }
+        function f(): IResult { return { ok: false, msg: "err" }; }
+      `,
+    },
+
+    // Async multi-return with boolean
+    {
+      name: 'async multi-return with boolean property',
+      code: `
+        type Result = { success: boolean; msg: string };
+        async function f(x: boolean): Promise<Result> {
+          if (x) return { success: true, msg: "ok" };
+          return { success: false, msg: "fail" };
+        }
+      `,
+    },
   ],
   invalid: [
     // Optional property: TypeScript does NOT contextually widen the literal here

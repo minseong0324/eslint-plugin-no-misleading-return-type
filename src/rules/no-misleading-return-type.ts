@@ -55,6 +55,8 @@ function findReturnExpressions(block: ts.Block): ts.Expression[] {
  * the narrow (pre-widening) type for boolean and numeric literals in object
  * properties. This function detects when the annotated type is only "wider"
  * because of this widening difference, avoiding false positives.
+ *
+ * Handles: plain objects, tuples, optional properties, null/undefined in unions.
  */
 function isOnlyPropertyLiteralWidening(
   checker: ts.TypeChecker,
@@ -82,20 +84,17 @@ function isOnlyPropertyLiteralWidening(
     return false;
   }
 
-  const widerProps = checker.getPropertiesOfType(wider);
+  // Use narrower's own properties as the basis for comparison.
+  // This avoids issues with tuples/arrays where getPropertiesOfType includes
+  // inherited prototype methods that differ between tuple types.
   const narrowerProps = checker.getPropertiesOfType(narrower);
+  if (narrowerProps.length === 0) return false;
 
-  if (widerProps.length !== narrowerProps.length) return false;
-  if (widerProps.length === 0) return false;
+  let hasWidening = false;
 
-  for (const wProp of widerProps) {
-    const nProp = narrowerProps.find((p) => p.name === wProp.name);
-    if (!nProp) return false;
-
-    // Check optionality matches
-    const wOptional = !!(wProp.flags & ts.SymbolFlags.Optional);
-    const nOptional = !!(nProp.flags & ts.SymbolFlags.Optional);
-    if (wOptional !== nOptional) return false;
+  for (const nProp of narrowerProps) {
+    const wProp = wider.getProperty(nProp.name);
+    if (!wProp) continue; // narrower has extra property — not a widening issue
 
     const wType = checker.getTypeOfSymbol(wProp);
     const nType = checker.getTypeOfSymbol(nProp);
@@ -114,16 +113,32 @@ function isOnlyPropertyLiteralWidening(
       checker.isTypeAssignableTo(wType, widenedN) &&
       checker.isTypeAssignableTo(widenedN, wType)
     ) {
+      hasWidening = true;
+      continue;
+    }
+
+    // For union property types (e.g., `data: string | null`):
+    // check if narrower's type is assignable to wider's property type.
+    // This handles cases like `data: null` vs `data: string | null`.
+    // Skip this check if optionality differs (wider is optional, narrower is
+    // required) — optional properties are intentionally wider, not a widening artifact.
+    const wOptional = !!(wProp.flags & ts.SymbolFlags.Optional);
+    const nOptional = !!(nProp.flags & ts.SymbolFlags.Optional);
+    if (wOptional === nOptional && checker.isTypeAssignableTo(nType, wType)) {
+      hasWidening = true;
       continue;
     }
 
     // Try recursive check for nested object types
-    if (!isOnlyPropertyLiteralWidening(checker, wType, nType, depth + 1)) {
-      return false;
+    if (isOnlyPropertyLiteralWidening(checker, wType, nType, depth + 1)) {
+      hasWidening = true;
+      continue;
     }
+
+    return false;
   }
 
-  return true;
+  return hasWidening;
 }
 
 function isOverloadImplementation(
