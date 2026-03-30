@@ -82,11 +82,42 @@ function isOnlyPropertyLiteralWidening(
     return false;
   }
 
+  // For tuple types, compare element types directly via getTypeArguments.
+  // This avoids iterating over inherited Array prototype methods whose
+  // signatures differ between tuple types (e.g., push, pop, map).
+  if (checker.isTupleType(wider) && checker.isTupleType(narrower)) {
+    const wElems = checker.getTypeArguments(wider as ts.TypeReference);
+    const nElems = checker.getTypeArguments(narrower as ts.TypeReference);
+    if (wElems.length !== nElems.length) return false;
+    if (wElems.length === 0) return false;
+    let hasWidening = false;
+    for (let i = 0; i < wElems.length; i++) {
+      if (
+        checker.isTypeAssignableTo(wElems[i], nElems[i]) &&
+        checker.isTypeAssignableTo(nElems[i], wElems[i])
+      ) {
+        continue;
+      }
+      const widenedN = checker.getBaseTypeOfLiteralType(nElems[i]);
+      if (
+        checker.isTypeAssignableTo(wElems[i], widenedN) &&
+        checker.isTypeAssignableTo(widenedN, wElems[i])
+      ) {
+        hasWidening = true;
+        continue;
+      }
+      return false;
+    }
+    return hasWidening;
+  }
+
   const widerProps = checker.getPropertiesOfType(wider);
   const narrowerProps = checker.getPropertiesOfType(narrower);
 
   if (widerProps.length !== narrowerProps.length) return false;
   if (widerProps.length === 0) return false;
+
+  let hasWidening = false;
 
   for (const wProp of widerProps) {
     const nProp = narrowerProps.find((p) => p.name === wProp.name);
@@ -114,16 +145,20 @@ function isOnlyPropertyLiteralWidening(
       checker.isTypeAssignableTo(wType, widenedN) &&
       checker.isTypeAssignableTo(widenedN, wType)
     ) {
+      hasWidening = true;
       continue;
     }
 
     // Try recursive check for nested object types
-    if (!isOnlyPropertyLiteralWidening(checker, wType, nType, depth + 1)) {
-      return false;
+    if (isOnlyPropertyLiteralWidening(checker, wType, nType, depth + 1)) {
+      hasWidening = true;
+      continue;
     }
+
+    return false;
   }
 
-  return true;
+  return hasWidening;
 }
 
 function isOverloadImplementation(

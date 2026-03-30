@@ -83,6 +83,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         async function f(): Promise<Result> { return { ok: true, data: "hi" }; }
       `,
     },
+
+    // Tuple element widening: TypeScript widens tuple element literals
+    // just like object properties. [true, "hello"] should match [boolean, string].
+    {
+      name: 'tuple element widening: [boolean, string] matches [true, "hello"]',
+      code: `
+        function f(): [boolean, string] { return [true, "hello"]; }
+      `,
+    },
   ],
   invalid: [
     // Optional property: TypeScript does NOT contextually widen the literal here
