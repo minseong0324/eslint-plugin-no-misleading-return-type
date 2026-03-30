@@ -42,6 +42,10 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'block body: return { x: 1 } as const with matching readonly annotation — no warning',
       code: `function getConfig(): { readonly x: 1 } { return { x: 1 } as const; }`,
     },
+    {
+      name: 'block body: return (expr as const) satisfies string with literal annotation — no warning',
+      code: 'function f(): "idle" { return ("idle" as const) satisfies string; }',
+    },
     // as const on variable (no narrowing effect)
     {
       name: 'block body: return someVar as const — variable type unchanged, no false positive',

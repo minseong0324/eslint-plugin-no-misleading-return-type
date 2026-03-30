@@ -26,5 +26,9 @@ export function hasConstAssertion(expr: ts.Expression): boolean {
       return true;
     }
   }
+  // satisfies expression: (expr as const) satisfies Foo
+  if (ts.isSatisfiesExpression(expr)) {
+    return hasConstAssertion(expr.expression);
+  }
   return false;
 }
