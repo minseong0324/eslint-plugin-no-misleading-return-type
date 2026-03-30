@@ -40,6 +40,49 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'contextual typing limitation: nested object — inner string literal widened by context',
       code: `function f(): { meta: { status: string } } { return { meta: { status: "ok" } }; }`,
     },
+
+    // Object property literal widening: without `as const`, TypeScript widens boolean/number
+    // literal properties in object literals (e.g., `false` → `boolean`).
+    // `checker.getTypeAtLocation()` may return the narrow type, but the rule must skip
+    // these cases to avoid false positives.
+    {
+      name: 'boolean property widening: { isSuccess: boolean } matches { isSuccess: false } without as const (single return)',
+      code: `
+        type Result = { isSuccess: boolean; message: string };
+        function f(): Result { return { isSuccess: false, message: "error" }; }
+      `,
+    },
+    {
+      name: 'boolean property widening: { isSuccess: boolean } matches { isSuccess: false } without as const (multi return)',
+      code: `
+        type Result = { isSuccess: boolean; message: string };
+        function f(x: boolean): Result {
+          if (x) return { isSuccess: false, message: "fail" };
+          return { isSuccess: false, message: "error" };
+        }
+      `,
+    },
+    {
+      name: 'number property widening: { code: number } matches { code: 404 } without as const',
+      code: `
+        type Response = { code: number; msg: string };
+        function f(): Response { return { code: 404, msg: "not found" }; }
+      `,
+    },
+    {
+      name: 'nested object property widening: inner boolean widened without as const',
+      code: `
+        type Outer = { meta: { active: boolean } };
+        function f(): Outer { return { meta: { active: true } }; }
+      `,
+    },
+    {
+      name: 'async function: object property widening in Promise',
+      code: `
+        type Result = { ok: boolean; data: string };
+        async function f(): Promise<Result> { return { ok: true, data: "hi" }; }
+      `,
+    },
   ],
   invalid: [
     // Optional property: TypeScript does NOT contextually widen the literal here
@@ -59,6 +102,37 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'narrowReturnType',
               output: `function f(): { type: string; } { return { type: "idle" }; }`,
+            },
+          ],
+        },
+      ],
+    },
+
+    // as const assertion: object property widening is NOT applied — literals are preserved.
+    // The rule MUST still warn when as const is used, because the narrow types are intentional.
+    {
+      name: 'as const object with boolean literal STILL warns (not skipped by property widening)',
+      code: `
+        type Result = { isSuccess: boolean; message: string };
+        function f(): Result { return { isSuccess: false, message: "error" } as const; }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        type Result = { isSuccess: boolean; message: string };
+        function f() { return { isSuccess: false, message: "error" } as const; }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        type Result = { isSuccess: boolean; message: string };
+        function f(): { readonly isSuccess: false; readonly message: "error"; } { return { isSuccess: false, message: "error" } as const; }
+      `,
             },
           ],
         },
