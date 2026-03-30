@@ -1,5 +1,11 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.7.1
+
+### Patch Changes
+
+- Fix false positives for object literal returns with boolean/number literal properties without `as const` ([#65](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/65))
+
 ## 0.7.0
 
 ### Minor Changes
