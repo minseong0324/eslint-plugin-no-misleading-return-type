@@ -1,5 +1,13 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.7.3
+
+### Patch Changes
+
+- refactor: deduplicate async/sync comparison logic in Phase 5 ([#74](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/74))
+
+- fix: detect as const inside satisfies expressions ([#71](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/71))
+
 ## 0.7.2
 
 ### Patch Changes
