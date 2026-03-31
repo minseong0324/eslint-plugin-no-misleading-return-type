@@ -111,6 +111,113 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
         }
       `,
     },
+
+    // === Constraint-based: inferred matches annotation ===
+    {
+      name: 'T extends {name: string}, returns x.name → concrete string matches',
+      code: `
+        function getName<T extends { name: string }>(x: T): string {
+          return x.name;
+        }
+      `,
+    },
+
+    // === JSON.stringify returns string ===
+    {
+      name: 'T unconstrained, JSON.stringify returns string → matches annotation',
+      code: `
+        function serialize<T>(x: T): string {
+          return JSON.stringify(x);
+        }
+      `,
+    },
+
+    // === Type assertion in return ===
+    {
+      name: 'type assertion makes return match annotation',
+      code: `
+        function toObj<T>(x: T): object {
+          return x as object;
+        }
+      `,
+    },
+
+    // === Arrow function with concrete return ===
+    {
+      name: 'arrow function with concrete annotation matching inferred',
+      code: `const len = <T extends string>(x: T): number => x.length;`,
+    },
+
+    // === Class method with concrete return ===
+    {
+      name: 'class method with concrete return type matching',
+      code: `
+        class Processor<T> {
+          count(items: T[]): number {
+            return items.length;
+          }
+        }
+      `,
+    },
+
+    // === Multiple type params, annotation uses none ===
+    {
+      name: 'multiple type params, concrete annotation matches',
+      code: `
+        function compare<T, U>(a: T, b: U): boolean {
+          return a === b;
+        }
+      `,
+    },
+
+    // === Conditional expression with concrete types ===
+    {
+      name: 'generic with conditional expression returning matching concrete type',
+      code: `
+        function check<T>(x: T): boolean {
+          return x != null ? true : false;
+        }
+      `,
+    },
+
+    // === Generic returning result of another function ===
+    {
+      name: 'generic calling non-generic function with concrete return',
+      code: `
+        function helper(): number { return 42; }
+        function wrapper<T>(x: T): number { return helper(); }
+      `,
+    },
+
+    // === Annotation with T[K] index access → skip ===
+    {
+      name: 'annotation with T[K] index access → skip',
+      code: `
+        function getProp<T, K extends keyof T>(obj: T, key: K): T[K] {
+          return obj[key];
+        }
+      `,
+    },
+
+    // === Annotation with keyof T → skip ===
+    {
+      name: 'annotation with keyof T → skip',
+      code: `
+        function getKey<T extends object>(obj: T): keyof T {
+          return Object.keys(obj)[0] as keyof T;
+        }
+      `,
+    },
+
+    // === Async generic with concrete string ===
+    {
+      name: 'async generic with concrete string, single return widened',
+      code: `
+        async function asyncLabel<T>(x: T): Promise<string> {
+          return "done";
+        }
+      `,
+    },
   ],
   invalid: [
     // === Concrete annotation wider than inferred ===
@@ -225,6 +332,117 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
         function getLabel<T>(x: T): "a" | "b" {
           if (Math.random() > 0.5) return "a";
           return "b";
+        }
+      `,
+            },
+          ],
+        },
+      ],
+    },
+
+    // === T extends string, return x: string wider than T's constraint ===
+    {
+      name: 'T extends string, return x → string wider than constraint',
+      code: `function id<T extends string>(x: T): string { return x; }`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `function id<T extends string>(x: T) { return x; }`,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `function id<T extends string>(x: T): T { return x; }`,
+            },
+          ],
+        },
+      ],
+    },
+
+    // === Arrow function with wider annotation ===
+    {
+      name: 'arrow function: object wider than { value: T }',
+      code: `const wrap = <T>(x: T): object => ({ value: x });`,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `const wrap = <T>(x: T) => ({ value: x });`,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `const wrap = <T>(x: T): { value: T; } => ({ value: x });`,
+            },
+          ],
+        },
+      ],
+    },
+
+    // === Async generic with concrete wider annotation ===
+    {
+      name: 'async generic: Promise<object> wider than Promise<{ value: T }>',
+      code: `
+        async function asyncWrap<T>(x: T): Promise<object> {
+          return { value: x };
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        async function asyncWrap<T>(x: T) {
+          return { value: x };
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        async function asyncWrap<T>(x: T): Promise<{ value: T; }> {
+          return { value: x };
+        }
+      `,
+            },
+          ],
+        },
+      ],
+    },
+
+    // === Number annotation wider than literal union in generic ===
+    {
+      name: 'generic with multi-return: number wider than 1 | 2',
+      code: `
+        function getCode<T>(x: T): number {
+          if (Math.random() > 0.5) return 1;
+          return 2;
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        function getCode<T>(x: T) {
+          if (Math.random() > 0.5) return 1;
+          return 2;
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getCode<T>(x: T): 1 | 2 {
+          if (Math.random() > 0.5) return 1;
+          return 2;
         }
       `,
             },
