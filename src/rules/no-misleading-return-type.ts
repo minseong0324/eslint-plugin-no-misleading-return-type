@@ -265,13 +265,33 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       if (
         node.parent != null &&
         node.parent.type === 'MethodDefinition' &&
-        (node.parent.kind === 'get' || node.parent.kind === 'set')
+        node.parent.kind === 'set'
       ) {
-        // getter/setter — v1 skip
-        // TODO(v2): Getters could be compared if we also inspect the setter's
-        // parameter type. Skipped because getter-only return type semantics
-        // differ from regular functions (no explicit call-site inference).
         return;
+      }
+      if (
+        node.parent != null &&
+        node.parent.type === 'MethodDefinition' &&
+        node.parent.kind === 'get'
+      ) {
+        // Skip getter+setter pairs — return type must be consistent with setter parameter
+        const classBody = node.parent.parent;
+        if (classBody?.type === 'ClassBody') {
+          const getterKey = node.parent.key;
+          const hasSetter = classBody.body.some(
+            (member) =>
+              member.type === 'MethodDefinition' &&
+              member.kind === 'set' &&
+              member.key.type === getterKey.type &&
+              ((member.key.type === 'Identifier' &&
+                getterKey.type === 'Identifier' &&
+                member.key.name === getterKey.name) ||
+                (member.key.type === 'Literal' &&
+                  getterKey.type === 'Literal' &&
+                  member.key.value === getterKey.value)),
+          );
+          if (hasSetter) return;
+        }
       }
       if (
         node.parent?.type === 'MethodDefinition' &&
