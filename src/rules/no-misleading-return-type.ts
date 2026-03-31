@@ -1,7 +1,10 @@
 import type { TSESLint, TSESTree } from '@typescript-eslint/utils';
 import { ESLintUtils } from '@typescript-eslint/utils';
 import ts from 'typescript';
-import { collectReturns } from '../helpers/collect-return-types.js';
+import {
+  collectReturns,
+  getExpressionType,
+} from '../helpers/collect-return-types.js';
 import { containsAny } from '../helpers/contains-any.js';
 import { createUnionType } from '../helpers/create-union-type.js';
 import { hasConstAssertion } from '../helpers/has-const-assertion.js';
@@ -472,7 +475,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           const tsBodyExpr = parserServices.esTreeNodeToTSNodeMap.get(
             node.body as TSESTree.Expression,
           );
-          const rawType = checker.getTypeAtLocation(tsBodyExpr);
+          const rawType = ts.isExpression(tsBodyExpr)
+            ? getExpressionType(checker, tsBodyExpr)
+            : checker.getTypeAtLocation(tsBodyExpr);
           const isConst =
             ts.isExpression(tsBodyExpr) &&
             hasEffectiveConstAssertion(checker, tsBodyExpr);

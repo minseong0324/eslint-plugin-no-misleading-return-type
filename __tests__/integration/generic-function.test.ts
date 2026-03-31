@@ -296,7 +296,7 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
             {
               messageId: 'narrowReturnType',
               output: `
-        function upcast<T extends "a" | "b">(x: T): "a" | "b" {
+        function upcast<T extends "a" | "b">(x: T): T {
           return x;
         }
       `,
