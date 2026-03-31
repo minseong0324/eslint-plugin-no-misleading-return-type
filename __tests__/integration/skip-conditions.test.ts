@@ -45,7 +45,7 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
 
     // getter / setter
     {
-      name: 'getter method → skip (v1)',
+      name: 'getter-only with single literal return — widened, no warning',
       code: `
         class Foo {
           get label(): string { return "foo"; }
@@ -58,6 +58,19 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         class Foo {
           private _v = "";
           set label(v: string) { this._v = v; }
+        }
+      `,
+    },
+    {
+      name: 'getter with corresponding setter → skip (return type must match setter)',
+      code: `
+        class Foo {
+          private _status = "";
+          get status(): string {
+            if (this._status === "") return "idle";
+            return "active";
+          }
+          set status(v: string) { this._status = v; }
         }
       `,
     },
