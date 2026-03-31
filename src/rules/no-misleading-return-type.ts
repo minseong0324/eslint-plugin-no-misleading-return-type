@@ -173,6 +173,59 @@ function hasEffectiveConstAssertion(
   return false;
 }
 
+/**
+ * Checks if a type contains any TypeScript type parameters (e.g., T, U).
+ * Used to determine if an annotation is "concrete" (safe to compare in
+ * generic functions) or depends on type parameters (must skip).
+ */
+function containsTypeParameter(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+  visited = new Set<ts.Type>(),
+): boolean {
+  if (visited.has(type)) return false;
+  visited.add(type);
+
+  if (type.flags & ts.TypeFlags.TypeParameter) return true;
+
+  if (type.isUnion() || type.isIntersection()) {
+    return type.types.some((t) => containsTypeParameter(checker, t, visited));
+  }
+
+  // TypeReference: Array<T>, Promise<T>, Map<K,V>, etc.
+  if (
+    type.flags & ts.TypeFlags.Object &&
+    (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
+  ) {
+    const typeArgs = checker.getTypeArguments(type as ts.TypeReference);
+    if (typeArgs.some((t) => containsTypeParameter(checker, t, visited))) {
+      return true;
+    }
+  }
+
+  // Object properties: { key: T }
+  if (type.flags & ts.TypeFlags.Object) {
+    for (const prop of type.getProperties()) {
+      if (
+        containsTypeParameter(checker, checker.getTypeOfSymbol(prop), visited)
+      ) {
+        return true;
+      }
+    }
+    // Index signatures: { [key: string]: T }
+    const stringIndex = type.getStringIndexType();
+    if (stringIndex && containsTypeParameter(checker, stringIndex, visited)) {
+      return true;
+    }
+    const numberIndex = type.getNumberIndexType();
+    if (numberIndex && containsTypeParameter(checker, numberIndex, visited)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
     `https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/blob/main/docs/rules/${name}.md`,
@@ -359,13 +412,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         // Unwrapping the yielded/return types is non-trivial. Skipped for v1.
         return;
       }
-      if (node.typeParameters) {
-        // generic functions — v1 skip
-        // Inference depends on call-site instantiation, not the function body alone.
-        // TODO(v2): Could check per call-site with generic instantiation,
-        // but the scope is too broad and error-prone for v1.
-        return;
-      }
+      // Generic functions: handled after Phase 3 (annotation resolution).
+      // If the annotation is concrete (no type parameters), comparison is safe.
+      // If the annotation references type parameters (e.g., T, T[]), skip.
 
       // Phase 2: TS node mapping
       const tsFunctionNode = parserServices.esTreeNodeToTSNodeMap.get(node);
@@ -384,6 +433,17 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       }
       const annotatedType = checker.getTypeFromTypeNode(tsReturnTypeNode);
       if (isEscapeHatch(annotatedType)) {
+        return;
+      }
+
+      // Generic functions: skip if annotation references type parameters.
+      // When the annotation is concrete (e.g., `object`, `string`, `number[]`),
+      // comparison is safe — isTypeAssignableTo handles unresolved type params
+      // in the inferred type correctly (treats them relative to their constraints).
+      if (
+        node.typeParameters &&
+        containsTypeParameter(checker, annotatedType)
+      ) {
         return;
       }
 

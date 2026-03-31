@@ -77,7 +77,7 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
 
     // generics / generators
     {
-      name: 'function with type parameters → skip',
+      name: 'generic function with T in annotation → skip (type param in annotation)',
       code: `function wrap<T>(x: T): T { return x; }`,
     },
     {
