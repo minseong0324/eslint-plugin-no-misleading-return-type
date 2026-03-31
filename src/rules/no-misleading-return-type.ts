@@ -406,6 +406,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       // effectiveInferred is the type to compare against annotated.
       // For async functions this may be unwrapped from Promise<T>.
       let effectiveInferred = inferredType;
+      let effectiveAnnotated: ts.Type;
 
       if (node.async) {
         // async functions: unwrap Promise<T> or PromiseLike<T> from annotated side
@@ -443,49 +444,33 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           }
         }
 
-        if (
-          includesUndefined(annotatedInner) &&
-          !includesUndefined(effectiveInferred)
-        ) {
-          return; // implicit undefined path heuristic
-        }
-        if (!isAnnotatedWiderThanInferred(annotatedInner, effectiveInferred)) {
-          return;
-        }
-        // Skip false positives from object literal property widening (e.g., false → boolean)
-        // without as const. TypeScript widens these in return type inference.
-        if (
-          !hasAnyConstReturn &&
-          isOnlyPropertyLiteralWidening(
-            checker,
-            annotatedInner,
-            effectiveInferred,
-          )
-        ) {
-          return;
-        }
+        effectiveAnnotated = annotatedInner;
       } else {
-        if (
-          includesUndefined(annotatedType) &&
-          !includesUndefined(effectiveInferred)
-        ) {
-          return; // implicit undefined path heuristic
-        }
-        if (!isAnnotatedWiderThanInferred(annotatedType, effectiveInferred)) {
-          return;
-        }
-        // Skip false positives from object literal property widening (e.g., false → boolean)
-        // without as const. TypeScript widens these in return type inference.
-        if (
-          !hasAnyConstReturn &&
-          isOnlyPropertyLiteralWidening(
-            checker,
-            annotatedType,
-            effectiveInferred,
-          )
-        ) {
-          return;
-        }
+        effectiveAnnotated = annotatedType;
+      }
+
+      if (
+        includesUndefined(effectiveAnnotated) &&
+        !includesUndefined(effectiveInferred)
+      ) {
+        return; // implicit undefined path heuristic
+      }
+      if (
+        !isAnnotatedWiderThanInferred(effectiveAnnotated, effectiveInferred)
+      ) {
+        return;
+      }
+      // Skip false positives from object literal property widening (e.g., false → boolean)
+      // without as const. TypeScript widens these in return type inference.
+      if (
+        !hasAnyConstReturn &&
+        isOnlyPropertyLiteralWidening(
+          checker,
+          effectiveAnnotated,
+          effectiveInferred,
+        )
+      ) {
+        return;
       }
 
       // Build the inferred type string for the message.
