@@ -43,7 +43,7 @@ pnpm add -D eslint-plugin-no-misleading-return-type
 **필수 요구사항:**
 - Node.js `^18.18.0 || ^20.9.0 || >=21.1.0`
 - ESLint `^9.0.0 || ^10.0.0`
-- TypeScript `>=5.0.0 <6.0.0` (tested: 5.0–5.9)
+- TypeScript `>=5.0.0 <7.0.0` (tested: 5.0–6.x)
 - 타입 정보가 활성화된 `@typescript-eslint/parser`
 
 ## 설정
@@ -114,6 +114,15 @@ export default [
 | `strict` | `error` | `suggestion` |
 | `autofix` | `warn` | `autofix` |
 
+> **팁:** 프리셋 spread를 커스텀 설정 _앞에_ 배치하여 `languageOptions`가 우선 적용되도록 하세요:
+> ```ts
+> {
+>   ...noMisleadingReturnType.configs.recommended,
+>   files: ["**/*.ts", "**/*.tsx"],
+>   languageOptions: { parser, parserOptions: { ... } },
+> }
+> ```
+
 ## 규칙: `no-misleading-return-type`
 
 ### 확인 대상
@@ -122,7 +131,7 @@ export default [
 
 - **보고함:** 주석 타입이 추론 타입보다 넓음 (예: `Record<string, string>` vs `{ readonly INVALID_TOKEN: "..." }`)
 - **보고 안 함:** 주석 타입이 추론 타입과 같거나 더 좁음
-- **보고 안 함:** 주석 없음, `void`, `any`, `unknown`, `never`, 제너레이터, 제네릭, 게터/세터, 오버로드, 비동기 `Promise<void|any>`
+- **보고 안 함:** 주석 없음, `void`, `any`, `unknown`, `never`, 제너레이터, 주석에 타입 파라미터가 있는 제네릭, 게터+세터 쌍, 오버로드, 비동기 `Promise<void|any>`
 
 ### 유효한 경우 (경고 없음)
 
@@ -206,7 +215,8 @@ async function getStatus(x: boolean): Promise<string> {
 
 - **단일 반환:** `getBaseTypeOfLiteralType`으로 넓힘 (TS 시그니처 추론과 일치)
 - **다중 반환:** 반환 표현식들의 리터럴 유니온 (TS 유니온 추론과 일치)
-- **비동기 함수:** `Promise<T>` / `PromiseLike<T>` 언래핑 후 내부 타입 비교
+- **비동기 함수:** `Promise<T>`, `PromiseLike<T>`, 그리고 이를 확장하는 타입 (예: `interface ApiResponse<T> extends Promise<T>`) 언래핑 후 내부 타입 비교
+- **제네릭 함수:** 반환 타입 주석이 구체적인 경우 검사 (예: `function wrap<T>(x: T): object`). 주석이 타입 파라미터를 참조하는 경우 건너뜀 (예: `: T`, `: T[]`)
 
 이 접근 방식은 실제 사용 사례의 대부분을 커버합니다. 알려진 제한 사항은 [검사하지 않는 케이스](#검사하지-않는-케이스)를 참조하세요.
 
@@ -219,7 +229,7 @@ async function getStatus(x: boolean): Promise<string> {
 | 케이스 | 이유 |
 |--------|------|
 | 단일 리터럴 반환값 | 이 룰이 기본 타입으로 넓힘 (예: `"idle"` → `string`) — TypeScript의 반환 타입 추론을 근사 |
-| 제네릭 함수 | 추론이 호출 지점에 의존 |
+| 주석에 타입 파라미터가 있는 제네릭 함수 | 반환 타입이 `T` (예: `: T`, `: T[]`, `: Promise<T>`)를 참조하면 추론이 호출 지점에 의존. 구체적 주석 (예: `: object`, `: string`)의 제네릭 함수는 **검사됨** |
 | 제너레이터 함수 | 복잡한 이터레이터 타입 |
 | `as const` 없는 객체 리터럴 (필수 string 프로퍼티) | 어노테이션의 컨텍스트 타입이 추론 전에 리터럴을 넓힘 — `as const` 객체는 우회하여 보고됨 |
 | 어노테이션에 `undefined` 또는 `void`가 포함되지만 추론 타입에는 없는 경우 | 암시적 undefined 반환 경로 휴리스틱 — 명시적 `return` 없는 코드 경로를 추적할 수 없음 |
@@ -232,11 +242,35 @@ async function getStatus(x: boolean): Promise<string> {
 |--------|------|
 | `void`, `any`, `unknown`, `never` | 의도적인 이스케이프 해치 |
 | `Promise<void>` / `Promise<any>` | 의도적인 이스케이프 해치 |
-| 게터 / 세터 | 접근자 의미론이 다름 |
+| 게터+세터 쌍 | 게터 반환 타입이 세터 파라미터 타입과 일치해야 함 |
 | `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
 | 재귀 함수 및 타입 체커 예외 | 타입 해석 실패 시 (순환 타입, 체커 오류 등) lint 실행 중단 대신 해당 함수를 건너뜀 |
-| enum 리터럴 반환 | enum 멤버 타입이 기본 타입으로 과도하게 넓혀질 수 있음 (예: `Status.Idle` → `Status` 대신 `string`) |
-| 커스텀 thenable | `Promise<T>`와 `PromiseLike<T>`만 언래핑됨 |
+| enum 리터럴 반환 | 단일 enum 멤버 반환은 enum 타입으로 넓혀짐 (예: `Status.Idle` → `Status`), TypeScript 추론과 일치. 다중 멤버 반환은 달라질 수 있음 |
+| 커스텀 thenable | `Promise<T>`, `PromiseLike<T>`, 그리고 이를 확장하는 타입은 언래핑됨. `then` 메서드를 가진 다른 thenable은 미지원 |
+| 오버로드 구현 함수 | 모든 오버로드 시그니처를 커버하기 위해 의도적으로 넓음 |
+| `override` 메서드 | 부모 클래스 반환 타입과 일치해야 함. 좁힐 수 있는 override를 놓칠 수 있음 (트레이드오프) |
+| `declare` 함수 / 추상 메서드 | 분석할 본문 없음 |
+
+### 판별 유니온과 컨텍스트 타입
+
+React/Redux 코드베이스에서 흔한 판별 유니온 반환 패턴:
+
+```ts
+type Action = { type: string; payload: unknown };
+
+function createAction(): Action {
+  return { type: "INCREMENT", payload: 42 };
+}
+```
+
+`as const` 없이는 TypeScript의 **컨텍스트 타입**이 프로퍼티 값을 넓히므로 (`"INCREMENT"` → `string`), 이 룰이 감지할 수 없습니다. 판별자의 정확성을 보존하려면 `as const`를 사용하세요:
+
+```ts
+function createAction() {
+  return { type: "INCREMENT", payload: 42 } as const;
+}
+// 추론: { readonly type: "INCREMENT"; readonly payload: 42 }
+```
 
 ## 의도적으로 넓은 타입이 필요한 경우
 
