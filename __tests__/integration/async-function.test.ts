@@ -75,6 +75,13 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         }
       `,
     },
+    {
+      name: 'type alias for Promise — resolves to Promise, single return widened',
+      code: `
+        type ApiResponse<T> = Promise<T>;
+        async function getName(): ApiResponse<string> { return "Alice"; }
+      `,
+    },
   ],
   invalid: [
     {
@@ -168,6 +175,43 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               messageId: 'narrowReturnType',
               output: `
         async function f(x: boolean): PromiseLike<"a" | "b"> {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'interface extending Promise — wider than inferred',
+      code: `
+        interface ApiResponse<T> extends Promise<T> { }
+        async function getStatus(x: boolean): ApiResponse<string> {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        interface ApiResponse<T> extends Promise<T> { }
+        async function getStatus(x: boolean) {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        interface ApiResponse<T> extends Promise<T> { }
+        async function getStatus(x: boolean): ApiResponse<"a" | "b"> {
           if (x) return "a";
           return "b";
         }
