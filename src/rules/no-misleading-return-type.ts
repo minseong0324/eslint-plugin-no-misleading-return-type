@@ -1,50 +1,15 @@
 import type { TSESLint, TSESTree } from '@typescript-eslint/utils';
 import { ESLintUtils } from '@typescript-eslint/utils';
 import ts from 'typescript';
-import { collectReturnTypes } from '../helpers/collect-return-types.js';
+import { collectReturns } from '../helpers/collect-return-types.js';
 import { containsAny } from '../helpers/contains-any.js';
 import { createUnionType } from '../helpers/create-union-type.js';
 import { hasConstAssertion } from '../helpers/has-const-assertion.js';
 import { includesUndefined } from '../helpers/includes-undefined.js';
 import { isEscapeHatch } from '../helpers/is-escape-hatch.js';
 import { isExported } from '../helpers/is-exported.js';
-import { isFunctionLike } from '../helpers/is-function-like.js';
 import { truncateTypeString } from '../helpers/truncate-type-string.js';
 import type { FunctionNode } from '../helpers/types.js';
-
-// Mirrors collectReturnTypes: only counts returns with an expression (skips bare `return;`).
-// If collectReturnTypes changes its collection logic, update here accordingly.
-function findSingleReturnExpression(
-  block: ts.Block,
-): ts.Expression | undefined {
-  let found: ts.Expression | undefined;
-  let count = 0;
-  function visit(node: ts.Node): void {
-    if (isFunctionLike(node)) return; // don't descend into nested functions
-    if (ts.isReturnStatement(node) && node.expression) {
-      found = node.expression;
-      count++;
-      return;
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(block);
-  return count === 1 ? found : undefined;
-}
-
-function findReturnExpressions(block: ts.Block): ts.Expression[] {
-  const expressions: ts.Expression[] = [];
-  function visit(node: ts.Node): void {
-    if (isFunctionLike(node)) return;
-    if (ts.isReturnStatement(node) && node.expression) {
-      expressions.push(node.expression);
-      return;
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(block);
-  return expressions;
-}
 
 /**
  * Checks if the difference between two types is solely due to object property
@@ -460,41 +425,31 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             return;
           }
 
-          const returnTypes: ts.Type[] = [];
-          // Initial call MUST pass the function body, not the function node itself.
-          // Passing the function node would trigger isFunctionLike guard → empty array.
-          collectReturnTypes(checker, tsFuncBody, returnTypes);
+          const returns = collectReturns(checker, tsFuncBody);
 
-          if (returnTypes.length === 0) {
+          if (returns.length === 0) {
             return;
           } // void function — nothing to compare
 
-          if (returnTypes.length === 1) {
-            const singleType = returnTypes[0];
-            const returnExpr = findSingleReturnExpression(
-              tsFuncBody as ts.Block,
-            );
-            const isConst =
-              returnExpr != null &&
-              hasEffectiveConstAssertion(checker, returnExpr);
+          if (returns.length === 1) {
+            const { type: singleType, expression: returnExpr } = returns[0];
+            const isConst = hasEffectiveConstAssertion(checker, returnExpr);
             hasAnyConstReturn = isConst;
-            // If the single return is already a union (e.g. ternary `x ? "a" : "b"`),
-            // skip widening — TS preserves literal unions in this case.
-            // If `as const` / `<const>` / `(... as const)` is present, preserve literal.
-            // Otherwise widen literal: TS widens single literal returns (e.g. "idle" → string).
             inferredType =
               singleType.isUnion() || isConst
                 ? singleType
                 : checker.getBaseTypeOfLiteralType(singleType);
           } else {
-            const union = createUnionType(checker, returnTypes);
+            const union = createUnionType(
+              checker,
+              returns.map((r) => r.type),
+            );
             if (!union) {
-              return; // Internal API unavailable — skip safely
+              return;
             }
             inferredType = union;
-            const returnExprs = findReturnExpressions(tsFuncBody as ts.Block);
-            hasAnyConstReturn = returnExprs.some((expr) =>
-              hasEffectiveConstAssertion(checker, expr),
+            hasAnyConstReturn = returns.some((r) =>
+              hasEffectiveConstAssertion(checker, r.expression),
             );
           }
         }

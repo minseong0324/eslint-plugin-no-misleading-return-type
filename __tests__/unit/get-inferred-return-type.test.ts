@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import ts from 'typescript';
-import { collectReturnTypes } from '../../src/helpers/collect-return-types.js';
+import { collectReturns } from '../../src/helpers/collect-return-types.js';
 import { getFunctionFromCode } from './helpers/create-function.js';
 
 function getInferredTypes(code: string, funcName: string) {
@@ -13,12 +13,10 @@ function getInferredTypes(code: string, funcName: string) {
     }
     return [];
   }
-  const types: ts.Type[] = [];
-  collectReturnTypes(checker, node.body, types);
-  return types;
+  return collectReturns(checker, node.body).map(r => r.type);
 }
 
-describe('collectReturnTypes', () => {
+describe('collectReturns', () => {
   it('returns string literal type from single return', () => {
     const types = getInferredTypes(`function foo() { return 'hello' }`, 'foo');
     assert.strictEqual(types.length, 1);
