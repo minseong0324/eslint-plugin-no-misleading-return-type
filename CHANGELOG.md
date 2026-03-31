@@ -1,5 +1,21 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.8.0
+
+### Minor Changes
+
+- Support generic functions with concrete return type annotations ([#87](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/87))
+
+- Support return type checking for getter-only accessors (getters without a corresponding setter) ([#80](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/80))
+
+- Support async return type checking for interfaces and classes extending Promise/PromiseLike ([#81](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/81))
+
+- Add TypeScript 6.0 support ([#85](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/85))
+
+### Patch Changes
+
+- Fix false negative when returning a variable initialized with `as const` ([#79](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/79))
+
 ## 0.7.3
 
 ### Patch Changes
