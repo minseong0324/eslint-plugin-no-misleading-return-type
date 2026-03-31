@@ -108,6 +108,15 @@ export default [
 ];
 ```
 
+> **Tip:** Place the preset spread _before_ your custom config to ensure your `languageOptions` takes precedence:
+> ```ts
+> {
+>   ...noMisleadingReturnType.configs.recommended,
+>   files: ["**/*.ts", "**/*.tsx"],
+>   languageOptions: { parser, parserOptions: { ... } },
+> }
+> ```
+
 | Preset | Severity | Fix mode |
 |--------|----------|----------|
 | `recommended` | `warn` | `suggestion` |
@@ -122,7 +131,7 @@ Reports when a function's explicit return type annotation is **wider** than Type
 
 - **Reports:** Annotated type is wider than inferred (e.g., `Record<string, string>` vs `{ readonly INVALID_TOKEN: "..." }`)
 - **Does not report:** Annotated type equals inferred or is narrower
-- **Does not report:** No annotation, `void`, `any`, `unknown`, `never`, generators, generics, getters/setters, overloads, async `Promise<void|any>`
+- **Does not report:** No annotation, `void`, `any`, `unknown`, `never`, generators, generics, getter+setter pairs, overloads, async `Promise<void|any>`
 
 ### Valid (no warning)
 
@@ -232,14 +241,35 @@ Rare scenarios requiring specialized handling:
 |------|--------|
 | `void`, `any`, `unknown`, `never` annotations | Intentional escape hatches |
 | `Promise<void>` / `Promise<any>` | Intentional escape hatches |
-| Getter / setter accessors | Accessor semantics differ |
+| Getter+setter pairs | Getter return type must be consistent with setter parameter type |
 | Functions with no `return` statement | Void functions — nothing to compare |
 | Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
-| Enum literal returns | Enum member types may be over-widened to their base type (e.g. `Status.Idle` → `string` instead of `Status`) |
-| Custom thenables | Only `Promise<T>` and `PromiseLike<T>` are unwrapped |
+| Enum literal returns | Single enum member returns are widened to the enum type (e.g. `Status.Idle` → `Status`), matching TypeScript's inference. Multi-member returns may vary |
+| Custom thenables | `Promise<T>`, `PromiseLike<T>`, and types extending them are unwrapped. Other thenables with a `then` method are not |
 | Overloaded function implementations | Intentionally wider to cover all overload signatures |
 | `override` methods | Must match parent class return type. May miss narrowable overrides (trade-off) |
 | `declare` functions / abstract methods | No body to analyze |
+
+### Discriminated unions and contextual typing
+
+A common pattern in React/Redux codebases is returning discriminated unions:
+
+```ts
+type Action = { type: string; payload: unknown };
+
+function createAction(): Action {
+  return { type: "INCREMENT", payload: 42 };
+}
+```
+
+Without `as const`, TypeScript's **contextual typing** widens property values (`"INCREMENT"` → `string`) before inference, making the widening invisible to this rule. To preserve discriminant precision, use `as const`:
+
+```ts
+function createAction() {
+  return { type: "INCREMENT", payload: 42 } as const;
+}
+// inferred: { readonly type: "INCREMENT"; readonly payload: 42 }
+```
 
 ## When to intentionally widen
 
