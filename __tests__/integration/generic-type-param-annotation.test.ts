@@ -104,6 +104,138 @@ ruleTester.run('generic-type-param-annotation', noMisleadingReturnType, {
       }
     `,
     },
+    // === Utility types with type parameters ===
+    {
+      name: 'Partial<T> — mapped type internally → skip',
+      code: `
+      function partial<T extends object>(x: T): Partial<T> {
+        return x;
+      }
+    `,
+    },
+    {
+      name: 'Required<T> — mapped type internally → skip',
+      code: `
+      function required<T extends object>(x: T): Required<T> {
+        return x as Required<T>;
+      }
+    `,
+    },
+    {
+      name: 'Pick<T, K> — mapped type internally → skip',
+      code: `
+      function pick<T, K extends keyof T>(obj: T, key: K): Pick<T, K> {
+        return { [key]: obj[key] } as Pick<T, K>;
+      }
+    `,
+    },
+    {
+      name: 'Extract<T, string> — conditional type internally → skip',
+      code: `
+      function extract<T>(x: T): Extract<T, string> {
+        return x as Extract<T, string>;
+      }
+    `,
+    },
+    {
+      name: 'Exclude<T, null> — conditional type internally → skip',
+      code: `
+      function excludeNull<T>(x: T): Exclude<T, null> {
+        return x as Exclude<T, null>;
+      }
+    `,
+    },
+
+    // === Intersection with type parameter ===
+    {
+      name: 'T & { id: string } — intersection containing T, no warning when matching',
+      code: `
+      function withId<T>(x: T): T & { id: string } {
+        return { ...x, id: "abc" } as T & { id: string };
+      }
+    `,
+    },
+
+    // === Class-level T + method-level U ===
+    {
+      name: 'class T + method U, annotation U matches inferred U',
+      code: `
+      class Container<T> {
+        private value!: T;
+        transform<U>(fn: (x: T) => U): U { return fn(this.value); }
+      }
+    `,
+    },
+
+    // === Nested generics ===
+    {
+      name: 'Promise<T[]> matches inferred — async',
+      code: `
+      async function wrapArr<T>(items: T[]): Promise<T[]> {
+        return items;
+      }
+    `,
+    },
+    {
+      name: 'Map<T, U> annotation matches inferred',
+      code: `
+      function toMap<T extends string, U>(key: T, val: U): Map<T, U> {
+        return new Map([[key, val]]);
+      }
+    `,
+    },
+    {
+      name: 'Set<T> annotation matches inferred',
+      code: `
+      function toSet<T>(x: T): Set<T> {
+        return new Set([x]);
+      }
+    `,
+    },
+
+    // === Default type parameter ===
+    {
+      name: 'default type param <T = string>, concrete annotation matches',
+      code: `
+      function label<T = string>(x: T): string { return String(x); }
+    `,
+    },
+
+    // === WeakRef<T> ===
+    {
+      name: 'WeakRef<T> annotation matches inferred',
+      code: `
+      function weakify<T extends object>(x: T): WeakRef<T> {
+        return new WeakRef(x);
+      }
+    `,
+    },
+
+    // === Real-world patterns ===
+    {
+      name: 'generic wrapper returning same structure — no false positive',
+      code: `
+      function wrapResponse<T>(data: T): { data: T; status: number } {
+        return { data, status: 200 };
+      }
+    `,
+    },
+    {
+      name: 'generic callback executor — no false positive',
+      code: `
+      function execute<T>(fn: () => T): T {
+        return fn();
+      }
+    `,
+    },
+    {
+      name: 'generic with multiple constraints, annotation matches',
+      code: `
+      function merge<T extends object, U extends object>(a: T, b: U): T & U {
+        return { ...a, ...b } as T & U;
+      }
+    `,
+    },
   ],
   invalid: [
     {
