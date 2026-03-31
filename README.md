@@ -131,7 +131,7 @@ Reports when a function's explicit return type annotation is **wider** than Type
 
 - **Reports:** Annotated type is wider than inferred (e.g., `Record<string, string>` vs `{ readonly INVALID_TOKEN: "..." }`)
 - **Does not report:** Annotated type equals inferred or is narrower
-- **Does not report:** No annotation, `void`, `any`, `unknown`, `never`, generators, generics with type parameters in annotation, getter+setter pairs, overloads, async `Promise<void|any>`
+- **Does not report:** No annotation, `void`, `any`, `unknown`, `never`, generators, generics with complex type constructs (conditional/mapped/index types), getter+setter pairs, overloads, async `Promise<void|any>`
 
 ### Valid (no warning)
 
@@ -216,7 +216,7 @@ This rule uses TypeScript's type checker APIs to approximate the inferred return
 - **Single return:** Widened via `getBaseTypeOfLiteralType` (matches TS signature inference)
 - **Multiple returns:** Literal union from return expressions (matches TS union inference)
 - **Async functions:** `Promise<T>`, `PromiseLike<T>`, and types extending them (e.g., `interface ApiResponse<T> extends Promise<T>`) unwrapped; inner type compared
-- **Generic functions:** Checked when the return type annotation is concrete (e.g., `function wrap<T>(x: T): object`). Skipped when the annotation references type parameters (e.g., `: T`, `: T[]`)
+- **Generic functions:** Checked for concrete annotations (e.g., `: object`, `: string`) and simple type parameter usage (e.g., `: T | null`, `: { value: T }`). Skipped only for complex type constructs (conditional, mapped, index, indexed access types)
 
 This approach covers the vast majority of real-world cases. See [What is not checked](#what-is-not-checked) for known limitations.
 
@@ -229,7 +229,7 @@ Cases you are likely to encounter in everyday code:
 | Case | Reason |
 |------|--------|
 | Single literal return values | Widened by this rule to their base type (e.g. `"idle"` → `string`) to approximate TypeScript's return type inference |
-| Generic functions with type parameters in annotation | When the return type references `T` (e.g., `: T`, `: T[]`, `: Promise<T>`), inference depends on call-site instantiation. Generic functions with concrete annotations (e.g., `: object`, `: string`) **are** checked |
+| Generic functions with complex type constructs in annotation | When the return type uses conditional (`T extends X ? Y : Z`), mapped (`{ [K in keyof T]: V }`), index (`keyof T`), or indexed access (`T[K]`) types, inference is deferred and comparison is unreliable. Simple type parameter usage (`: T`, `: T[]`, `: T \| null`) **is** checked — e.g., `T \| null` where null is never returned is detected |
 | Generator functions | Complex iterator typing |
 | Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
 | `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
