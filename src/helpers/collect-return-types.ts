@@ -1,20 +1,29 @@
 import ts from 'typescript';
 import { isFunctionLike } from './is-function-like.js';
 
-export function collectReturnTypes(
+type ReturnInfo = { type: ts.Type; expression: ts.Expression };
+
+/**
+ * Collects all return statements with expressions from a function body,
+ * returning both the inferred type and the AST expression for each.
+ * Skips bare `return;` statements (no expression) and nested function-like nodes.
+ */
+export function collectReturns(
   checker: ts.TypeChecker,
   node: ts.Node,
-  types: ts.Type[],
-): void {
-  // Don't traverse into nested function-like nodes — they have their own return types
-  if (isFunctionLike(node)) {
-    return;
+): ReturnInfo[] {
+  const results: ReturnInfo[] = [];
+  function visit(child: ts.Node): void {
+    if (isFunctionLike(child)) return;
+    if (ts.isReturnStatement(child) && child.expression) {
+      results.push({
+        type: checker.getTypeAtLocation(child.expression),
+        expression: child.expression,
+      });
+      return;
+    }
+    ts.forEachChild(child, visit);
   }
-
-  if (ts.isReturnStatement(node) && node.expression) {
-    types.push(checker.getTypeAtLocation(node.expression));
-    return;
-  }
-
-  ts.forEachChild(node, (child) => collectReturnTypes(checker, child, types));
+  visit(node);
+  return results;
 }
