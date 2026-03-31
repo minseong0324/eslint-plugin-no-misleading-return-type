@@ -206,7 +206,7 @@ This rule uses TypeScript's type checker APIs to approximate the inferred return
 
 - **Single return:** Widened via `getBaseTypeOfLiteralType` (matches TS signature inference)
 - **Multiple returns:** Literal union from return expressions (matches TS union inference)
-- **Async functions:** Standard `Promise<T>` / `PromiseLike<T>` unwrapped; inner type compared
+- **Async functions:** `Promise<T>`, `PromiseLike<T>`, and types extending them (e.g., `interface ApiResponse<T> extends Promise<T>`) unwrapped; inner type compared
 
 This approach covers the vast majority of real-world cases. See [What is not checked](#what-is-not-checked) for known limitations.
 

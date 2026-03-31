@@ -217,6 +217,63 @@ type FixOption = 'suggestion' | 'autofix' | 'none';
 type Options = [{ fix: FixOption }];
 
 const PROMISE_NAMES = new Set(['Promise', 'PromiseLike']);
+
+/**
+ * Extracts the inner type T from Promise<T>, PromiseLike<T>, or types extending them.
+ * Returns undefined if the type is not Promise-like.
+ */
+function getPromiseTypeArg(
+  checker: ts.TypeChecker,
+  type: ts.Type,
+): ts.Type | undefined {
+  // Direct: Promise<T> or PromiseLike<T>
+  if (type.symbol && PROMISE_NAMES.has(type.symbol.name)) {
+    const typeArgs = checker.getTypeArguments(type as ts.TypeReference);
+    return typeArgs?.[0];
+  }
+  // Interface/class extending Promise (e.g., interface ApiResponse<T> extends Promise<T>)
+  // For a generic instantiation like ApiResponse<string>, getBaseTypes returns
+  // uninstantiated base types (Promise<T> instead of Promise<string>).
+  // We must use the reference type's own type arguments which hold the concrete types.
+  if (type.flags & ts.TypeFlags.Object) {
+    const objType = type as ts.ObjectType;
+    // For generic instantiations (Reference types), check the target's base types
+    // and map back through the instantiated type arguments.
+    if (objType.objectFlags & ts.ObjectFlags.Reference) {
+      const refType = type as ts.TypeReference;
+      if (refType.target && refType.target !== type) {
+        try {
+          const targetBaseTypes = checker.getBaseTypes(
+            refType.target as ts.InterfaceType,
+          );
+          for (const base of targetBaseTypes) {
+            if (base.symbol && PROMISE_NAMES.has(base.symbol.name)) {
+              // The target's base is Promise<T> (uninstantiated).
+              // The refType's typeArguments hold the instantiated params,
+              // so typeArgs[0] is the concrete type (e.g., string).
+              const typeArgs = checker.getTypeArguments(refType);
+              return typeArgs?.[0];
+            }
+          }
+        } catch {
+          // Not an interface type — ignore
+        }
+      }
+    } else {
+      // Non-reference object types (direct interface/class declarations)
+      try {
+        const baseTypes = checker.getBaseTypes(type as ts.InterfaceType);
+        for (const base of baseTypes) {
+          const arg = getPromiseTypeArg(checker, base);
+          if (arg) return arg;
+        }
+      } catch {
+        // Not an interface type — ignore
+      }
+    }
+  }
+  return undefined;
+}
 type MessageIds =
   | 'misleadingReturnType'
   | 'removeReturnType'
@@ -459,21 +516,11 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       let effectiveAnnotated: ts.Type;
 
       if (node.async) {
-        // async functions: unwrap Promise<T> or PromiseLike<T> from annotated side
-        if (
-          !annotatedType.symbol ||
-          !PROMISE_NAMES.has(annotatedType.symbol.name)
-        ) {
+        // async functions: unwrap Promise<T> / PromiseLike<T> or types extending them
+        const annotatedInner = getPromiseTypeArg(checker, annotatedType);
+        if (!annotatedInner) {
           return;
         }
-        const typeArgs = checker.getTypeArguments(
-          annotatedType as ts.TypeReference,
-        );
-        if (!typeArgs || typeArgs.length === 0) {
-          return;
-        }
-
-        const annotatedInner = typeArgs[0];
         if (isEscapeHatch(annotatedInner)) {
           return;
         } // Promise<void>, Promise<any>, etc.
@@ -481,17 +528,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         // Also unwrap inferred type if it's Promise<T> or PromiseLike<T>
         // (e.g., return someAsyncFn()). In async functions, returning a thenable
         // resolves to T, so compare inner types.
-        if (
-          PROMISE_NAMES.has(inferredType.symbol?.name ?? '') &&
-          inferredType.flags & ts.TypeFlags.Object &&
-          (inferredType as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
-        ) {
-          const inferredArgs = checker.getTypeArguments(
-            inferredType as ts.TypeReference,
-          );
-          if (inferredArgs && inferredArgs.length > 0) {
-            effectiveInferred = inferredArgs[0];
-          }
+        const inferredInner = getPromiseTypeArg(checker, inferredType);
+        if (inferredInner) {
+          effectiveInferred = inferredInner;
         }
 
         effectiveAnnotated = annotatedInner;
