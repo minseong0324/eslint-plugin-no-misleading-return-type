@@ -51,6 +51,15 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'block body: return someVar as const — variable type unchanged, no false positive',
       code: `function getStatus(): string { const s: string = "idle"; return s as const; }`,
     },
+    {
+      name: 'block body: variable without as const, wider annotation — no warning (property widening)',
+      code: `
+        function getConfig(): { A: string; B: string } {
+          const result = { A: "x", B: "y" };
+          return result;
+        }
+      `,
+    },
   ],
   invalid: [
     {
@@ -87,6 +96,74 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
             {
               messageId: 'narrowReturnType',
               output: `function getConfig(): { readonly x: 1; } { return { x: 1 } as const; }`,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'block body: variable initialized with as const, returned without — should warn',
+      code: `
+        function getConfig(): { A: string; B: string } {
+          const result = { A: "x", B: "y" } as const;
+          return result;
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        function getConfig() {
+          const result = { A: "x", B: "y" } as const;
+          return result;
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getConfig(): { readonly A: "x"; readonly B: "y"; } {
+          const result = { A: "x", B: "y" } as const;
+          return result;
+        }
+      `,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      name: 'block body: variable initialized with <const>, returned without — should warn',
+      code: `
+        function getConfig(): { A: string; B: string } {
+          const result = <const>{ A: "x", B: "y" };
+          return result;
+        }
+      `,
+      errors: [
+        {
+          messageId: 'misleadingReturnType',
+          suggestions: [
+            {
+              messageId: 'removeReturnType',
+              output: `
+        function getConfig() {
+          const result = <const>{ A: "x", B: "y" };
+          return result;
+        }
+      `,
+            },
+            {
+              messageId: 'narrowReturnType',
+              output: `
+        function getConfig(): { readonly A: "x"; readonly B: "y"; } {
+          const result = <const>{ A: "x", B: "y" };
+          return result;
+        }
+      `,
             },
           ],
         },
