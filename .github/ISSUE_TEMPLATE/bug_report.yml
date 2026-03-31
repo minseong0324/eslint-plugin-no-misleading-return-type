@@ -1,0 +1,84 @@
+name: Bug Report
+description: Report a false positive, false negative, or unexpected behavior
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please provide the following information to help us reproduce the issue.
+  - type: textarea
+    id: code
+    attributes:
+      label: Code
+      description: Minimal TypeScript code that reproduces the issue
+      placeholder: |
+        function example(): string {
+          if (condition) return "a";
+          return "b";
+        }
+      render: typescript
+    validations:
+      required: true
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: Issue type
+      options:
+        - False positive (warns but shouldn't)
+        - False negative (should warn but doesn't)
+        - Incorrect suggestion
+        - Crash / error
+    validations:
+      required: true
+  - type: input
+    id: typescript-version
+    attributes:
+      label: TypeScript version
+      placeholder: "5.8.3"
+    validations:
+      required: true
+  - type: input
+    id: eslint-version
+    attributes:
+      label: ESLint version
+      placeholder: "9.20.0"
+    validations:
+      required: true
+  - type: input
+    id: parser-version
+    attributes:
+      label: "@typescript-eslint/parser version"
+      placeholder: "8.20.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: exported
+    attributes:
+      label: Is the function exported?
+      options:
+        - "Yes"
+        - "No"
+    validations:
+      required: false
+  - type: textarea
+    id: config
+    attributes:
+      label: ESLint config (relevant parts)
+      render: typescript
+    validations:
+      required: false
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens?
+    validations:
+      required: true
