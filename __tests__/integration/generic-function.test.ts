@@ -3,25 +3,25 @@ import { ruleTester } from './_setup.js';
 
 ruleTester.run('generic-function', noMisleadingReturnType, {
   valid: [
-    // === Annotation contains type parameter → skip (preserved behavior) ===
+    // === Annotation contains type parameter — now checked (simple T usage) ===
     {
-      name: 'annotation is T → skip',
+      name: 'annotation T matches inferred T — no warning',
       code: `function identity<T>(x: T): T { return x; }`,
     },
     {
-      name: 'annotation is T[] → skip',
+      name: 'annotation T[] matches inferred T[] — no warning',
       code: `function toArray<T>(x: T): T[] { return [x]; }`,
     },
     {
-      name: 'annotation is Promise<T> → skip',
+      name: 'annotation Promise<T> matches inferred Promise<T> — no warning',
       code: `async function wrap<T>(x: T): Promise<T> { return x; }`,
     },
     {
-      name: 'annotation is { value: T } → skip',
+      name: 'annotation { value: T } matches inferred — no warning',
       code: `function wrap<T>(x: T): { value: T } { return { value: x }; }`,
     },
     {
-      name: 'annotation is T | null → skip',
+      name: 'annotation T | null matches inferred T | null — no warning',
       code: `
         function maybe<T>(x: T): T | null {
           if (Math.random() > 0.5) return x;
@@ -30,7 +30,7 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
       `,
     },
     {
-      name: 'annotation is Map<string, T> → skip',
+      name: 'annotation Map<string, T> matches inferred — no warning',
       code: `
         function toMap<T>(x: T): Map<string, T> {
           return new Map([["key", x]]);
@@ -38,7 +38,7 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
       `,
     },
     {
-      name: 'annotation is [T, T] → skip',
+      name: 'annotation [T, T] matches inferred — no warning',
       code: `function pair<T>(x: T): [T, T] { return [x, x]; }`,
     },
 
@@ -191,7 +191,7 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
 
     // === Annotation with T[K] index access → skip ===
     {
-      name: 'annotation with T[K] index access → skip',
+      name: 'annotation with T[K] index access — unsafe construct, skip',
       code: `
         function getProp<T, K extends keyof T>(obj: T, key: K): T[K] {
           return obj[key];
@@ -201,7 +201,7 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
 
     // === Annotation with keyof T → skip ===
     {
-      name: 'annotation with keyof T → skip',
+      name: 'annotation with keyof T — unsafe construct, skip',
       code: `
         function getKey<T extends object>(obj: T): keyof T {
           return Object.keys(obj)[0] as keyof T;
@@ -296,7 +296,7 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
             {
               messageId: 'narrowReturnType',
               output: `
-        function upcast<T extends "a" | "b">(x: T): "a" | "b" {
+        function upcast<T extends "a" | "b">(x: T): T {
           return x;
         }
       `,

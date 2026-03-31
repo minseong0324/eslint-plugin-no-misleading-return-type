@@ -131,7 +131,7 @@ export default [
 
 - **보고함:** 주석 타입이 추론 타입보다 넓음 (예: `Record<string, string>` vs `{ readonly INVALID_TOKEN: "..." }`)
 - **보고 안 함:** 주석 타입이 추론 타입과 같거나 더 좁음
-- **보고 안 함:** 주석 없음, `void`, `any`, `unknown`, `never`, 제너레이터, 주석에 타입 파라미터가 있는 제네릭, 게터+세터 쌍, 오버로드, 비동기 `Promise<void|any>`
+- **보고 안 함:** 주석 없음, `void`, `any`, `unknown`, `never`, 제너레이터, 복잡한 타입 구조의 제네릭 (conditional/mapped/index 타입), 게터+세터 쌍, 오버로드, 비동기 `Promise<void|any>`
 
 ### 유효한 경우 (경고 없음)
 
@@ -216,7 +216,7 @@ async function getStatus(x: boolean): Promise<string> {
 - **단일 반환:** `getBaseTypeOfLiteralType`으로 넓힘 (TS 시그니처 추론과 일치)
 - **다중 반환:** 반환 표현식들의 리터럴 유니온 (TS 유니온 추론과 일치)
 - **비동기 함수:** `Promise<T>`, `PromiseLike<T>`, 그리고 이를 확장하는 타입 (예: `interface ApiResponse<T> extends Promise<T>`) 언래핑 후 내부 타입 비교
-- **제네릭 함수:** 반환 타입 주석이 구체적인 경우 검사 (예: `function wrap<T>(x: T): object`). 주석이 타입 파라미터를 참조하는 경우 건너뜀 (예: `: T`, `: T[]`)
+- **제네릭 함수:** 구체적 주석 (예: `: object`, `: string`)과 단순 타입 파라미터 사용 (예: `: T | null`, `: { value: T }`)을 검사. 복잡한 타입 구조 (conditional, mapped, index, indexed access 타입)만 건너뜀
 
 이 접근 방식은 실제 사용 사례의 대부분을 커버합니다. 알려진 제한 사항은 [검사하지 않는 케이스](#검사하지-않는-케이스)를 참조하세요.
 
@@ -229,7 +229,7 @@ async function getStatus(x: boolean): Promise<string> {
 | 케이스 | 이유 |
 |--------|------|
 | 단일 리터럴 반환값 | 이 룰이 기본 타입으로 넓힘 (예: `"idle"` → `string`) — TypeScript의 반환 타입 추론을 근사 |
-| 주석에 타입 파라미터가 있는 제네릭 함수 | 반환 타입이 `T` (예: `: T`, `: T[]`, `: Promise<T>`)를 참조하면 추론이 호출 지점에 의존. 구체적 주석 (예: `: object`, `: string`)의 제네릭 함수는 **검사됨** |
+| 복잡한 타입 구조의 제네릭 함수 | 반환 타입이 conditional (`T extends X ? Y : Z`), mapped (`{ [K in keyof T]: V }`), index (`keyof T`), indexed access (`T[K]`) 타입을 사용하면 추론이 지연되어 비교 불가. 단순 타입 파라미터 사용 (`: T`, `: T[]`, `: T \| null`)의 제네릭 함수는 **검사됨** — 예: `T \| null`에서 null을 반환하지 않는 경우 감지 |
 | 제너레이터 함수 | 복잡한 이터레이터 타입 |
 | `as const` 없는 객체 리터럴 (필수 string 프로퍼티) | 어노테이션의 컨텍스트 타입이 추론 전에 리터럴을 넓힘 — `as const` 객체는 우회하여 보고됨 |
 | 어노테이션에 `undefined` 또는 `void`가 포함되지만 추론 타입에는 없는 경우 | 암시적 undefined 반환 경로 휴리스틱 — 명시적 `return` 없는 코드 경로를 추적할 수 없음 |

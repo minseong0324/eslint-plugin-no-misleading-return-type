@@ -1,7 +1,10 @@
 import type { TSESLint, TSESTree } from '@typescript-eslint/utils';
 import { ESLintUtils } from '@typescript-eslint/utils';
 import ts from 'typescript';
-import { collectReturns } from '../helpers/collect-return-types.js';
+import {
+  collectReturns,
+  getExpressionType,
+} from '../helpers/collect-return-types.js';
 import { containsAny } from '../helpers/contains-any.js';
 import { createUnionType } from '../helpers/create-union-type.js';
 import { hasConstAssertion } from '../helpers/has-const-assertion.js';
@@ -174,11 +177,12 @@ function hasEffectiveConstAssertion(
 }
 
 /**
- * Checks if a type contains any TypeScript type parameters (e.g., T, U).
- * Used to determine if an annotation is "concrete" (safe to compare in
- * generic functions) or depends on type parameters (must skip).
+ * Checks if a type contains complex type constructs that make
+ * isTypeAssignableTo unreliable for generic function comparison.
+ * Conditional types, mapped types, index types, and indexed access
+ * types involve deferred type resolution that can produce incorrect results.
  */
-function containsTypeParameter(
+function containsUnsafeTypeConstruct(
   checker: ts.TypeChecker,
   type: ts.Type,
   visited = new Set<ts.Type>(),
@@ -186,40 +190,47 @@ function containsTypeParameter(
   if (visited.has(type)) return false;
   visited.add(type);
 
-  if (type.flags & ts.TypeFlags.TypeParameter) return true;
+  if (type.flags & ts.TypeFlags.Conditional) return true;
+  if (type.flags & ts.TypeFlags.Substitution) return true;
+  if (type.flags & ts.TypeFlags.Index) return true;
+  if (type.flags & ts.TypeFlags.IndexedAccess) return true;
 
-  if (type.isUnion() || type.isIntersection()) {
-    return type.types.some((t) => containsTypeParameter(checker, t, visited));
+  if (
+    type.flags & ts.TypeFlags.Object &&
+    (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Mapped
+  ) {
+    return true;
   }
 
-  // TypeReference: Array<T>, Promise<T>, Map<K,V>, etc.
+  if (type.isUnion() || type.isIntersection()) {
+    return type.types.some((t) =>
+      containsUnsafeTypeConstruct(checker, t, visited),
+    );
+  }
+
   if (
     type.flags & ts.TypeFlags.Object &&
     (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
   ) {
     const typeArgs = checker.getTypeArguments(type as ts.TypeReference);
-    if (typeArgs.some((t) => containsTypeParameter(checker, t, visited))) {
+    if (
+      typeArgs.some((t) => containsUnsafeTypeConstruct(checker, t, visited))
+    ) {
       return true;
     }
   }
 
-  // Object properties: { key: T }
   if (type.flags & ts.TypeFlags.Object) {
     for (const prop of type.getProperties()) {
       if (
-        containsTypeParameter(checker, checker.getTypeOfSymbol(prop), visited)
+        containsUnsafeTypeConstruct(
+          checker,
+          checker.getTypeOfSymbol(prop),
+          visited,
+        )
       ) {
         return true;
       }
-    }
-    // Index signatures: { [key: string]: T }
-    const stringIndex = type.getStringIndexType();
-    if (stringIndex && containsTypeParameter(checker, stringIndex, visited)) {
-      return true;
-    }
-    const numberIndex = type.getNumberIndexType();
-    if (numberIndex && containsTypeParameter(checker, numberIndex, visited)) {
-      return true;
     }
   }
 
@@ -436,13 +447,13 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         return;
       }
 
-      // Generic functions: skip if annotation references type parameters.
-      // When the annotation is concrete (e.g., `object`, `string`, `number[]`),
-      // comparison is safe — isTypeAssignableTo handles unresolved type params
-      // in the inferred type correctly (treats them relative to their constraints).
+      // Generic functions: skip only when annotation contains complex type constructs
+      // (conditional, mapped, index, indexed-access) where isTypeAssignableTo is unreliable.
+      // Simple type parameter usage (T, T[], T | null, { prop: T }) works correctly
+      // with bidirectional assignability — TS handles type parameter identity.
       if (
         node.typeParameters &&
-        containsTypeParameter(checker, annotatedType)
+        containsUnsafeTypeConstruct(checker, annotatedType)
       ) {
         return;
       }
@@ -464,7 +475,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           const tsBodyExpr = parserServices.esTreeNodeToTSNodeMap.get(
             node.body as TSESTree.Expression,
           );
-          const rawType = checker.getTypeAtLocation(tsBodyExpr);
+          const rawType = ts.isExpression(tsBodyExpr)
+            ? getExpressionType(checker, tsBodyExpr)
+            : checker.getTypeAtLocation(tsBodyExpr);
           const isConst =
             ts.isExpression(tsBodyExpr) &&
             hasEffectiveConstAssertion(checker, tsBodyExpr);
@@ -564,6 +577,26 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       ) {
         return;
       }
+      // Skip union redundancy: T | string where T extends string → semantically just string.
+      // TypeScript doesn't collapse these unions, so isTypeAssignableTo sees them as wider,
+      // but the extra member is already a supertype of T's constraint — not misleading.
+      if (effectiveAnnotated.isUnion() && node.typeParameters) {
+        const typeParamMembers = effectiveAnnotated.types.filter(
+          (t) => t.flags & ts.TypeFlags.TypeParameter,
+        );
+        if (typeParamMembers.length > 0) {
+          const allSubsumed = typeParamMembers.every((tp) => {
+            const constraint = checker.getBaseConstraintOfType(tp);
+            if (!constraint) return false;
+            return effectiveAnnotated.types.some(
+              (other) =>
+                other !== tp && checker.isTypeAssignableTo(constraint, other),
+            );
+          });
+          if (allSubsumed) return;
+        }
+      }
+
       // Skip false positives from object literal property widening (e.g., false → boolean)
       // without as const. TypeScript widens these in return type inference.
       if (
