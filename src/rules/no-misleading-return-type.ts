@@ -181,6 +181,33 @@ function isOverloadImplementation(
   return false;
 }
 
+/**
+ * Checks if an expression effectively has `as const`, including
+ * cases where a variable was initialized with `as const`.
+ * e.g., `const x = { A: "x" } as const; return x;`
+ */
+function hasEffectiveConstAssertion(
+  checker: ts.TypeChecker,
+  expr: ts.Expression,
+): boolean {
+  if (hasConstAssertion(expr)) return true;
+
+  // Follow variable references: `const x = { ... } as const; return x;`
+  if (ts.isIdentifier(expr)) {
+    const symbol = checker.getSymbolAtLocation(expr);
+    const decl = symbol?.valueDeclaration;
+    if (
+      decl &&
+      ts.isVariableDeclaration(decl) &&
+      decl.initializer &&
+      ts.isExpression(decl.initializer)
+    ) {
+      return hasConstAssertion(decl.initializer);
+    }
+  }
+  return false;
+}
+
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
     `https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/blob/main/docs/rules/${name}.md`,
@@ -337,7 +364,8 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           );
           const rawType = checker.getTypeAtLocation(tsBodyExpr);
           const isConst =
-            ts.isExpression(tsBodyExpr) && hasConstAssertion(tsBodyExpr);
+            ts.isExpression(tsBodyExpr) &&
+            hasEffectiveConstAssertion(checker, tsBodyExpr);
           hasAnyConstReturn = isConst;
           inferredType = isConst
             ? rawType
@@ -369,7 +397,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             const returnExpr = findSingleReturnExpression(
               tsFuncBody as ts.Block,
             );
-            const isConst = returnExpr != null && hasConstAssertion(returnExpr);
+            const isConst =
+              returnExpr != null &&
+              hasEffectiveConstAssertion(checker, returnExpr);
             hasAnyConstReturn = isConst;
             // If the single return is already a union (e.g. ternary `x ? "a" : "b"`),
             // skip widening — TS preserves literal unions in this case.
@@ -387,7 +417,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             inferredType = union;
             const returnExprs = findReturnExpressions(tsFuncBody as ts.Block);
             hasAnyConstReturn = returnExprs.some((expr) =>
-              hasConstAssertion(expr),
+              hasEffectiveConstAssertion(checker, expr),
             );
           }
         }
