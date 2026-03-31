@@ -1,7 +1,7 @@
 import ts from 'typescript';
 import { isFunctionLike } from './is-function-like.js';
 
-export type ReturnInfo = { type: ts.Type; expression: ts.Expression };
+type ReturnInfo = { type: ts.Type; expression: ts.Expression };
 
 /**
  * Collects all return statements with expressions from a function body,
