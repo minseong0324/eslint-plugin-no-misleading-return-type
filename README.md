@@ -212,15 +212,34 @@ This approach covers the vast majority of real-world cases. See [What is not che
 
 ## What is not checked
 
+### Common cases
+
+Cases you are likely to encounter in everyday code:
+
 | Case | Reason |
 |------|--------|
+| Single literal return values | Widened by this rule to their base type (e.g. `"idle"` → `string`) to approximate TypeScript's return type inference |
+| Generic functions | Inference depends on call-site instantiation |
+| Generator functions | Complex iterator typing |
+| Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
+| `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
+
+### Edge cases
+
+Rare scenarios requiring specialized handling:
+
+| Case | Reason |
+|------|--------|
+| `void`, `any`, `unknown`, `never` annotations | Intentional escape hatches |
+| `Promise<void>` / `Promise<any>` | Intentional escape hatches |
+| Getter / setter accessors | Accessor semantics differ |
+| Functions with no `return` statement | Void functions — nothing to compare |
+| Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
+| Enum literal returns | Enum member types may be over-widened to their base type (e.g. `Status.Idle` → `string` instead of `Status`) |
+| Custom thenables | Only `Promise<T>` and `PromiseLike<T>` are unwrapped |
 | Overloaded function implementations | Intentionally wider to cover all overload signatures |
 | `override` methods | Must match parent class return type. May miss narrowable overrides (trade-off) |
 | `declare` functions / abstract methods | No body to analyze |
-| Getter / setter accessors | Getter-only return type semantics differ from regular functions |
-| Generator functions | Iterator<T, TReturn, TNext> unwrapping is non-trivial |
-| Generic functions | Inference depends on call-site instantiation |
-| Functions returning `any`, `unknown`, `never`, `void` | Intentional escape hatches |
 
 ## When to intentionally widen
 
@@ -234,6 +253,18 @@ function getStatus(loading: boolean): string {
   return 'idle';
 }
 ```
+
+## Troubleshooting
+
+**The rule reports nothing**
+- Ensure type information is configured (`projectService` or `project` in parserOptions)
+- Check that the file is included in your TypeScript project
+- Functions without return type annotations are intentionally skipped
+
+**The rule reports too much**
+- Single literal returns (e.g., `return "idle"`) are widened to match TS inference — this is expected
+- Object literal properties without `as const` may be contextually typed — use `as const` for precise types
+- Use `eslint-disable` for intentionally wide return types (e.g., stable API contracts)
 
 ## License
 
