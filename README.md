@@ -43,7 +43,7 @@ pnpm add -D eslint-plugin-no-misleading-return-type
 **Requirements:**
 - Node.js `^18.18.0 || ^20.9.0 || >=21.1.0`
 - ESLint `^9.0.0 || ^10.0.0`
-- TypeScript `>=5.0.0 <6.0.0` (tested: 5.0–5.9)
+- TypeScript `>=5.0.0 <7.0.0` (tested: 5.0–6.x)
 - `@typescript-eslint/parser` with type information enabled
 
 ## Setup
