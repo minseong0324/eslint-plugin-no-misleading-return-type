@@ -78,9 +78,11 @@ jobs:
         run: pnpm test
 
       - name: Build
+        if: matrix.node-version != '18'
         run: pnpm build
 
       - name: Publint
+        if: matrix.node-version != '18'
         run: pnpm publint
 
   ci:
