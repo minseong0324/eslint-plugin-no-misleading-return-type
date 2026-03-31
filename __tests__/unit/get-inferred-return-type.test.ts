@@ -13,7 +13,7 @@ function getInferredTypes(code: string, funcName: string) {
     }
     return [];
   }
-  return collectReturns(checker, node.body).map(r => r.type);
+  return collectReturns(checker, node.body).map((r) => r.type);
 }
 
 describe('collectReturns', () => {
