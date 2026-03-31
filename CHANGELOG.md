@@ -1,5 +1,11 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.9.0
+
+### Minor Changes
+
+- Check generic functions with simple type parameter annotations (T | null, { prop: T }, etc.) ([#89](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/89))
+
 ## 0.8.0
 
 ### Minor Changes
