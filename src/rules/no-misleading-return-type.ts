@@ -364,7 +364,8 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           );
           const rawType = checker.getTypeAtLocation(tsBodyExpr);
           const isConst =
-            ts.isExpression(tsBodyExpr) && hasEffectiveConstAssertion(checker, tsBodyExpr);
+            ts.isExpression(tsBodyExpr) &&
+            hasEffectiveConstAssertion(checker, tsBodyExpr);
           hasAnyConstReturn = isConst;
           inferredType = isConst
             ? rawType
@@ -396,7 +397,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
             const returnExpr = findSingleReturnExpression(
               tsFuncBody as ts.Block,
             );
-            const isConst = returnExpr != null && hasEffectiveConstAssertion(checker, returnExpr);
+            const isConst =
+              returnExpr != null &&
+              hasEffectiveConstAssertion(checker, returnExpr);
             hasAnyConstReturn = isConst;
             // If the single return is already a union (e.g. ternary `x ? "a" : "b"`),
             // skip widening — TS preserves literal unions in this case.
