@@ -210,14 +210,22 @@ function containsUnsafeTypeConstruct(
     (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
   ) {
     const typeArgs = checker.getTypeArguments(type as ts.TypeReference);
-    if (typeArgs.some((t) => containsUnsafeTypeConstruct(checker, t, visited))) {
+    if (
+      typeArgs.some((t) => containsUnsafeTypeConstruct(checker, t, visited))
+    ) {
       return true;
     }
   }
 
   if (type.flags & ts.TypeFlags.Object) {
     for (const prop of type.getProperties()) {
-      if (containsUnsafeTypeConstruct(checker, checker.getTypeOfSymbol(prop), visited)) {
+      if (
+        containsUnsafeTypeConstruct(
+          checker,
+          checker.getTypeOfSymbol(prop),
+          visited,
+        )
+      ) {
         return true;
       }
     }
@@ -564,6 +572,26 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       ) {
         return;
       }
+      // Skip union redundancy: T | string where T extends string → semantically just string.
+      // TypeScript doesn't collapse these unions, so isTypeAssignableTo sees them as wider,
+      // but the extra member is already a supertype of T's constraint — not misleading.
+      if (effectiveAnnotated.isUnion() && node.typeParameters) {
+        const typeParamMembers = effectiveAnnotated.types.filter(
+          (t) => t.flags & ts.TypeFlags.TypeParameter,
+        );
+        if (typeParamMembers.length > 0) {
+          const allSubsumed = typeParamMembers.every((tp) => {
+            const constraint = checker.getBaseConstraintOfType(tp);
+            if (!constraint) return false;
+            return effectiveAnnotated.types.some(
+              (other) =>
+                other !== tp && checker.isTypeAssignableTo(constraint, other),
+            );
+          });
+          if (allSubsumed) return;
+        }
+      }
+
       // Skip false positives from object literal property widening (e.g., false → boolean)
       // without as const. TypeScript widens these in return type inference.
       if (
