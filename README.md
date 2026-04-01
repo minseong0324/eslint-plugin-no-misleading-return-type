@@ -122,7 +122,7 @@ Reports when a function's explicit return type annotation is **wider** than Type
 
 - **Reports:** Annotated type is wider than inferred (e.g., `Record<string, string>` vs `{ readonly INVALID_TOKEN: "..." }`)
 - **Does not report:** Annotated type equals inferred or is narrower
-- **Does not report:** No annotation, `void`, `any`, `unknown`, `never`, generators, generics with complex type constructs (conditional/mapped/index types), getter+setter pairs, overloads, async `Promise<void|any>`
+- **Does not report:** No annotation, `void`, `any`, `unknown`, `never`, generators, generics with complex type constructs (conditional/mapped/index types), getter+setter pairs, overloads, async `Promise<void|any|unknown|never>`
 
 ### Valid (no warning)
 
@@ -228,7 +228,7 @@ Cases you are likely to encounter in everyday code:
 | Single literal return values | Widened by this rule to their base type (e.g. `"idle"` → `string`) to approximate TypeScript's return type inference |
 | Generic functions with complex type constructs in annotation | When the return type uses conditional (`T extends X ? Y : Z`), mapped (`{ [K in keyof T]: V }`), index (`keyof T`), or indexed access (`T[K]`) types, inference is deferred and comparison is unreliable. Simple type parameter usage (`: T`, `: T[]`, `: T \| null`) **is** checked — e.g., `T \| null` where null is never returned is detected |
 | Generator functions | Complex iterator typing |
-| Object literals without `as const` (required string properties) | Contextual typing from the annotation widens literals before inference — `as const` objects bypass this and are still reported |
+| Object literals without `as const` | Contextual typing from the annotation widens property literals before inference — `as const` objects bypass this and are still reported |
 | `T \| undefined` or `T \| void` annotation where inferred has no `undefined` | Implicit undefined return path heuristic — the rule cannot track code paths without explicit `return` |
 
 ### Edge cases
@@ -238,7 +238,7 @@ Rare scenarios requiring specialized handling:
 | Case | Reason |
 |------|--------|
 | `void`, `any`, `unknown`, `never` annotations | Intentional escape hatches |
-| `Promise<void>` / `Promise<any>` | Intentional escape hatches |
+| `Promise<void>` / `Promise<any>` / `Promise<unknown>` / `Promise<never>` | Intentional escape hatches |
 | Getter+setter pairs | Getter return type must be consistent with setter parameter type |
 | Functions with no `return` statement | Void functions — nothing to compare |
 | Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
