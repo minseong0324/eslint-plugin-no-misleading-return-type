@@ -73,20 +73,18 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       }
 
       if (
-        node.parent != null &&
         node.parent.type === 'MethodDefinition' &&
         node.parent.kind === 'set'
       ) {
         return true;
       }
       if (
-        node.parent != null &&
         node.parent.type === 'MethodDefinition' &&
         node.parent.kind === 'get'
       ) {
         // Skip getter+setter pairs — return type must be consistent with setter parameter
         const classBody = node.parent.parent;
-        if (classBody?.type === 'ClassBody') {
+        if (classBody.type === 'ClassBody') {
           const getterKey = node.parent.key;
           const hasSetter = classBody.body.some(
             (member) =>
@@ -106,7 +104,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         }
       }
       if (
-        node.parent?.type === 'MethodDefinition' &&
+        node.parent.type === 'MethodDefinition' &&
         node.parent.override === true
       ) {
         // override method — v1 skip
