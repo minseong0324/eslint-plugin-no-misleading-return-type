@@ -118,7 +118,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       }
       if (node.generator) {
         // generators — v1 skip
-        // TODO(v2): Generator return type is Iterator<T, TReturn, TNext>.
+        // TODO(v2): Generator return type is Generator<T, TReturn, TNext>.
         // Unwrapping the yielded/return types is non-trivial. Skipped for v1.
         return true;
       }

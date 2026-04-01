@@ -16,9 +16,9 @@ export function getPromiseTypeArg(
     return typeArgs?.[0];
   }
   // Interface/class extending Promise (e.g., interface ApiResponse<T> extends Promise<T>)
-  // For a generic instantiation like ApiResponse<string>, getBaseTypes returns
-  // uninstantiated base types (Promise<T> instead of Promise<string>).
-  // We must use the reference type's own type arguments which hold the concrete types.
+  // For a generic instantiation like ApiResponse<string>, calling getBaseTypes
+  // on refType.target (the uninstantiated declaration) returns uninstantiated
+  // base types (Promise<T> instead of Promise<string>).
   if (type.flags & ts.TypeFlags.Object) {
     const objType = type as ts.ObjectType;
     // For generic instantiations (Reference types), check the target's base types
