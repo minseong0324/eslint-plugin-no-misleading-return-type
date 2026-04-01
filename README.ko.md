@@ -122,7 +122,7 @@ export default [
 
 - **보고함:** 어노테이션 타입이 추론 타입보다 넓음 (예: `Record<string, string>` vs `{ readonly INVALID_TOKEN: "..." }`)
 - **보고 안 함:** 어노테이션 타입이 추론 타입과 같거나 더 좁음
-- **보고 안 함:** 어노테이션 없음, `void`, `any`, `unknown`, `never`, 제너레이터, 복잡한 타입 구조의 제네릭 (conditional/mapped/index 타입), 게터+세터 쌍, 오버로드, 비동기 `Promise<void|any>`
+- **보고 안 함:** 어노테이션 없음, `void`, `any`, `unknown`, `never`, 제너레이터, 복잡한 타입 구조의 제네릭 (conditional/mapped/index 타입), 게터+세터 쌍, 오버로드, 비동기 `Promise<void|any|unknown|never>`
 
 ### 유효한 경우 (경고 없음)
 
@@ -213,7 +213,7 @@ async function getStatus(x: boolean): Promise<string> {
   - **검사 (구체적 어노테이션):** `: object`, `: string`, `: number`, `: boolean` — 예: `function wrap<T>(x: T): object`에서 `object`이 `{ value: T }`보다 넓음을 감지
   - **검사 (단순 타입 파라미터):** `: T`, `: T[]`, `: T | null`, `: { value: T }`, `: Promise<T>` — 예: `function f<T>(x: T): T | null { return x; }`에서 null이 반환되지 않음을 감지
   - **건너뜀 (복잡한 타입 구조):** `: T extends X ? Y : Z` (conditional), `: { [K in keyof T]: V }` (mapped), `: keyof T` (index), `: T[K]` (indexed access), `: Partial<T>`, `: Required<T>`, `: Extract<T, U>`, `: Exclude<T, U>`
-  - **경고 안 함 (annotation이 올바른 케이스):** `T | string` (T extends string인 경우 중복 유니온), `Promise.resolve()`의 `Promise<Awaited<T>>`, non-null assertion `!`의 `NonNullable<T>`
+  - **경고 안 함 (어노테이션이 올바른 케이스):** `T | string` (T extends string인 경우 중복 유니온), `Promise.resolve()`의 `Promise<Awaited<T>>`, non-null assertion `!`의 `NonNullable<T>`
 
 이 접근 방식은 실제 사용 사례의 대부분을 커버합니다. 알려진 제한 사항은 [검사하지 않는 케이스](#검사하지-않는-케이스)를 참조하세요.
 
@@ -228,7 +228,7 @@ async function getStatus(x: boolean): Promise<string> {
 | 단일 리터럴 반환값 | 이 룰이 기본 타입으로 넓힘 (예: `"idle"` → `string`) — TypeScript의 반환 타입 추론을 근사 |
 | 복잡한 타입 구조의 제네릭 함수 | 반환 타입이 conditional (`T extends X ? Y : Z`), mapped (`{ [K in keyof T]: V }`), index (`keyof T`), indexed access (`T[K]`) 타입을 사용하면 추론이 지연되어 비교 불가. 단순 타입 파라미터 사용 (`: T`, `: T[]`, `: T \| null`)의 제네릭 함수는 **검사됨** — 예: `T \| null`에서 null을 반환하지 않는 경우 감지 |
 | 제너레이터 함수 | 복잡한 이터레이터 타입 |
-| `as const` 없는 객체 리터럴 (필수 string 프로퍼티) | 어노테이션의 컨텍스트 타입이 추론 전에 리터럴을 넓힘 — `as const` 객체는 우회하여 보고됨 |
+| `as const` 없는 객체 리터럴 | 어노테이션의 컨텍스트 타입이 추론 전에 프로퍼티 리터럴을 넓힘 — `as const` 객체는 리터럴 타입이 보존되므로 감지 가능 |
 | 어노테이션에 `undefined` 또는 `void`가 포함되지만 추론 타입에는 없는 경우 | 암시적 undefined 반환 경로 휴리스틱 — 명시적 `return` 없는 코드 경로를 추적할 수 없음 |
 
 ### 엣지 케이스
@@ -238,7 +238,7 @@ async function getStatus(x: boolean): Promise<string> {
 | 케이스 | 이유 |
 |--------|------|
 | `void`, `any`, `unknown`, `never` | 의도적인 이스케이프 해치 |
-| `Promise<void>` / `Promise<any>` | 의도적인 이스케이프 해치 |
+| `Promise<void>` / `Promise<any>` / `Promise<unknown>` / `Promise<never>` | 의도적인 이스케이프 해치 |
 | 게터+세터 쌍 | 게터 반환 타입이 세터 파라미터 타입과 일치해야 함 |
 | `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
 | 재귀 함수 및 타입 체커 예외 | 타입 해석 실패 시 (순환 타입, 체커 오류 등) lint 실행 중단 대신 해당 함수를 건너뜀 |
