@@ -193,8 +193,8 @@ async function getStatus(x: boolean): Promise<string> {
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | How to offer fixes |
 
 **fix modes:**
-- `"suggestion"` — IDE inline suggestions: (1) remove annotation, (2) narrow annotation to inferred type
-- `"autofix"` — Auto-removes annotation (falls back to suggestion for exported functions with `isolatedDeclarations`)
+- `"suggestion"` — IDE inline suggestions: (1) remove annotation (non-exported only), (2) narrow annotation to inferred type
+- `"autofix"` — Auto-removes annotation (falls back to suggestion for exported functions to avoid breaking `isolatedDeclarations`)
 - `"none"` — Report without any fix
 
 **Example:**
