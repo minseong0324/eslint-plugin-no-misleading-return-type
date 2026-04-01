@@ -1,4 +1,4 @@
-import type ts from "typescript";
+import type ts from 'typescript';
 
 /**
  * Extracts the inner type T from Promise<T>.
@@ -6,9 +6,9 @@ import type ts from "typescript";
  */
 export function getPromiseTypeArg(
   checker: ts.TypeChecker,
-  type: ts.Type
+  type: ts.Type,
 ): ts.Type | undefined {
-  if (type.symbol && type.symbol.name === "Promise") {
+  if (type.symbol && type.symbol.name === 'Promise') {
     const typeArgs = checker.getTypeArguments(type as ts.TypeReference);
     return typeArgs?.[0];
   }
