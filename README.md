@@ -220,7 +220,7 @@ This rule uses TypeScript's type checker APIs to approximate the inferred return
   - **Checked (concrete annotation):** `: object`, `: string`, `: number`, `: boolean` — e.g., `function wrap<T>(x: T): object` detects `object` is wider than `{ value: T }`
   - **Checked (simple type parameter):** `: T`, `: T[]`, `: T | null`, `: { value: T }`, `: Promise<T>` — e.g., `function f<T>(x: T): T | null { return x; }` detects null is never returned
   - **Skipped (complex type constructs):** `: T extends X ? Y : Z` (conditional), `: { [K in keyof T]: V }` (mapped), `: keyof T` (index), `: T[K]` (indexed access), `: Partial<T>`, `: Required<T>`, `: Extract<T, U>`, `: Exclude<T, U>`
-  - **Suppressed (not misleading):** `T | string` where `T extends string` (redundant union), `Promise<Awaited<T>>` from `Promise.resolve()`, `NonNullable<T>` from non-null assertion `!`
+  - **Not reported (annotation is correct):** `T | string` where `T extends string` (redundant union), `Promise<Awaited<T>>` from `Promise.resolve()`, `NonNullable<T>` from non-null assertion `!`
 
 This approach covers the vast majority of real-world cases. See [What is not checked](#what-is-not-checked) for known limitations.
 
