@@ -144,19 +144,21 @@ function getErrorMessages() {
   } as const;
 }
 
-// Single literal return — widened by this rule to approximate TS return type inference
+// Single literal return — widened to base type to match TS return type inference
 function getStatus(): string { return "idle"; }
 function getCode(): number { return 404; }
 
-// Annotation matches inferred
-function getStatus(): "idle" { return "idle"; }
+// Multi-return union — annotation matches inferred union
+function getStatus(loading: boolean): "loading" | "idle" {
+  if (loading) return "loading";
+  return "idle";
+}
 
 // Escape hatches (intentionally wide types)
 function run(): void { console.log("done"); }
 function parse(s: string): any { return JSON.parse(s); }
 
 // Async with matching inner type
-async function greet(): Promise<"hello"> { return "hello"; }
 async function greet(): Promise<string> { return "hello"; }  // single return — widened to string
 ```
 
