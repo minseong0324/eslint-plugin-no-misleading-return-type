@@ -10,7 +10,7 @@ export function getPromiseTypeArg(
 ): ts.Type | undefined {
   if (type.symbol && type.symbol.name === 'Promise') {
     const typeArgs = checker.getTypeArguments(type as ts.TypeReference);
-    return typeArgs?.[0];
+    return typeArgs[0];
   }
   return undefined;
 }

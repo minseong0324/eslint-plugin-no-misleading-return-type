@@ -45,8 +45,8 @@ export function isExported(
 
   // Case A: export function foo() / export default function()
   if (
-    node.parent?.type === 'ExportNamedDeclaration' ||
-    node.parent?.type === 'ExportDefaultDeclaration'
+    node.parent.type === 'ExportNamedDeclaration' ||
+    node.parent.type === 'ExportDefaultDeclaration'
   ) {
     return true;
   }
@@ -56,31 +56,31 @@ export function isExported(
   if (
     (node.type === 'FunctionExpression' ||
       node.type === 'ArrowFunctionExpression') &&
-    node.parent?.type === 'VariableDeclarator' &&
-    node.parent.parent?.type === 'VariableDeclaration' &&
-    (node.parent.parent.parent?.type === 'ExportNamedDeclaration' ||
-      node.parent.parent.parent?.type === 'ExportDefaultDeclaration')
+    node.parent.type === 'VariableDeclarator' &&
+    node.parent.parent.type === 'VariableDeclaration' &&
+    (node.parent.parent.parent.type === 'ExportNamedDeclaration' ||
+      node.parent.parent.parent.type === 'ExportDefaultDeclaration')
   ) {
     return true;
   }
 
   // Case C: export class Foo { method() {} } / export default class { method() {} }
   // FE -> MethodDefinition -> ClassBody -> ClassDecl/Expr -> Export*Declaration
-  if (node.parent?.type === 'MethodDefinition') {
-    const classNode = node.parent.parent?.parent;
+  if (node.parent.type === 'MethodDefinition') {
+    const classNode = node.parent.parent.parent;
     if (
-      classNode?.parent?.type === 'ExportNamedDeclaration' ||
-      classNode?.parent?.type === 'ExportDefaultDeclaration'
+      classNode.parent.type === 'ExportNamedDeclaration' ||
+      classNode.parent.type === 'ExportDefaultDeclaration'
     ) {
       return true;
     }
     // export const Foo = class { ... }
     if (
-      classNode?.type === 'ClassExpression' &&
-      classNode.parent?.type === 'VariableDeclarator' &&
-      classNode.parent.parent?.type === 'VariableDeclaration' &&
-      (classNode.parent.parent.parent?.type === 'ExportNamedDeclaration' ||
-        classNode.parent.parent.parent?.type === 'ExportDefaultDeclaration')
+      classNode.type === 'ClassExpression' &&
+      classNode.parent.type === 'VariableDeclarator' &&
+      classNode.parent.parent.type === 'VariableDeclaration' &&
+      (classNode.parent.parent.parent.type === 'ExportNamedDeclaration' ||
+        classNode.parent.parent.parent.type === 'ExportDefaultDeclaration')
     ) {
       return true;
     }
@@ -97,7 +97,7 @@ export function isExported(
   if (
     (node.type === 'FunctionExpression' ||
       node.type === 'ArrowFunctionExpression') &&
-    node.parent?.type === 'VariableDeclarator'
+    node.parent.type === 'VariableDeclarator'
   ) {
     const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(node.parent);
     if (
@@ -109,10 +109,10 @@ export function isExported(
   }
 
   // Case F: class method in indirectly exported class
-  if (node.parent?.type === 'MethodDefinition') {
-    const classNode = node.parent.parent?.parent;
+  if (node.parent.type === 'MethodDefinition') {
+    const classNode = node.parent.parent.parent;
     // ClassDeclaration: class Foo {} export { Foo }
-    if (classNode?.type === 'ClassDeclaration' && classNode.id) {
+    if (classNode.type === 'ClassDeclaration' && classNode.id) {
       const tsClassNode = parserServices.esTreeNodeToTSNodeMap.get(classNode);
       if (ts.isClassDeclaration(tsClassNode) && tsClassNode.name) {
         return isSymbolExported(tsClassNode.name);
@@ -120,8 +120,8 @@ export function isExported(
     }
     // ClassExpression: const Foo = class {} ... export { Foo }
     if (
-      classNode?.type === 'ClassExpression' &&
-      classNode.parent?.type === 'VariableDeclarator'
+      classNode.type === 'ClassExpression' &&
+      classNode.parent.type === 'VariableDeclarator'
     ) {
       const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(
         classNode.parent,
@@ -138,21 +138,21 @@ export function isExported(
   // Case G: export const api = { method() {} } (object literal method)
   // Also handles: export default { method() {} }, nested objects, and indirect exports.
   // Traverses Property → ObjectExpression chains upward to find the owning declaration.
-  if (node.parent?.type === 'Property') {
-    let objExpr: TSESTree.Node | undefined = node.parent.parent;
-    while (objExpr?.type === 'ObjectExpression') {
+  if (node.parent.type === 'Property') {
+    let objExpr: TSESTree.Node = node.parent.parent;
+    while (objExpr.type === 'ObjectExpression') {
       // export default { method() {} } — ObjectExpression is direct child of ExportDefaultDeclaration
-      if (objExpr.parent?.type === 'ExportDefaultDeclaration') {
+      if (objExpr.parent.type === 'ExportDefaultDeclaration') {
         return true;
       }
       if (
-        objExpr.parent?.type === 'VariableDeclarator' &&
-        objExpr.parent.parent?.type === 'VariableDeclaration'
+        objExpr.parent.type === 'VariableDeclarator' &&
+        objExpr.parent.parent.type === 'VariableDeclaration'
       ) {
         const varDeclParent = objExpr.parent.parent.parent;
         if (
-          varDeclParent?.type === 'ExportNamedDeclaration' ||
-          varDeclParent?.type === 'ExportDefaultDeclaration'
+          varDeclParent.type === 'ExportNamedDeclaration' ||
+          varDeclParent.type === 'ExportDefaultDeclaration'
         ) {
           return true;
         }
@@ -169,7 +169,7 @@ export function isExported(
         break;
       }
       // Climb one level: ObjectExpression → Property → (parent ObjectExpression)
-      if (objExpr.parent?.type !== 'Property') {
+      if (objExpr.parent.type !== 'Property') {
         break;
       }
       objExpr = objExpr.parent.parent;
@@ -178,10 +178,10 @@ export function isExported(
 
   // Case H: export = function/class (CJS-style TS export)
   if (
-    node.parent?.type === 'TSExportAssignment' ||
-    (node.parent?.type === 'VariableDeclarator' &&
-      node.parent.parent?.type === 'VariableDeclaration' &&
-      node.parent.parent.parent?.type === 'TSExportAssignment')
+    node.parent.type === 'TSExportAssignment' ||
+    (node.parent.type === 'VariableDeclarator' &&
+      node.parent.parent.type === 'VariableDeclaration' &&
+      node.parent.parent.parent.type === 'TSExportAssignment')
   ) {
     return true;
   }
