@@ -27,7 +27,7 @@ function getErrorMessages() {
 }
 ```
 
-This rule reports when an annotated return type is wider than what TypeScript would infer, helping you detect misleadingly wide return annotations and preserve the precision your implementation provides.
+This rule reports when an annotated return type is wider than what TypeScript would infer, helping you preserve the precision your implementation provides.
 
 ## Installation
 
@@ -107,15 +107,6 @@ export default [
   },
 ];
 ```
-
-> **Tip:** Place the preset spread _before_ your custom config to ensure your `languageOptions` takes precedence:
-> ```ts
-> {
->   ...noMisleadingReturnType.configs.recommended,
->   files: ["**/*.ts", "**/*.tsx"],
->   languageOptions: { parser, parserOptions: { ... } },
-> }
-> ```
 
 | Preset | Severity | Fix mode |
 |--------|----------|----------|
