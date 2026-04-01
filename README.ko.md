@@ -191,8 +191,8 @@ async function getStatus(x: boolean): Promise<string> {
 | `fix` | `"suggestion" \| "autofix" \| "none"` | `"suggestion"` | 수정 제공 방식 |
 
 **fix 모드:**
-- `"suggestion"` — IDE 인라인 제안: (1) 반환 타입 어노테이션 제거 (내보내지 않은 함수만), (2) 추론 타입으로 어노테이션 좁히기
-- `"autofix"` — 반환 타입 어노테이션 자동 제거 (`isolatedDeclarations` 호환을 위해 내보낸 함수는 제안으로 폴백)
+- `"suggestion"` — IDE 인라인 제안: (1) 반환 타입 어노테이션 제거 (export 함수 제외), (2) 추론 타입으로 어노테이션 좁히기
+- `"autofix"` — 반환 타입 어노테이션 자동 제거 (`isolatedDeclarations` 호환을 위해 export 함수는 제안으로 폴백)
 - `"none"` — 수정 없이 보고만 함
 
 **예제:**
