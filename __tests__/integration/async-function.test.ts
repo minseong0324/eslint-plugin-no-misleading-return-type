@@ -82,6 +82,16 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
         async function getName(): ApiResponse<string> { return "Alice"; }
       `,
     },
+    {
+      name: 'multi-param interface extending Promise — correct type arg mapping',
+      code: `
+        interface WeirdPromise<A, B> extends Promise<B> {}
+        async function f(x: boolean): WeirdPromise<string, "a" | "b"> {
+          if (x) return "a";
+          return "b";
+        }
+      `,
+    },
   ],
   invalid: [
     {

@@ -16,13 +16,12 @@ export function getPromiseTypeArg(
     return typeArgs?.[0];
   }
   // Interface/class extending Promise (e.g., interface ApiResponse<T> extends Promise<T>)
-  // For a generic instantiation like ApiResponse<string>, getBaseTypes returns
-  // uninstantiated base types (Promise<T> instead of Promise<string>).
-  // We must use the reference type's own type arguments which hold the concrete types.
   if (type.flags & ts.TypeFlags.Object) {
     const objType = type as ts.ObjectType;
-    // For generic instantiations (Reference types), check the target's base types
-    // and map back through the instantiated type arguments.
+    // For generic instantiations (Reference types), getBaseTypes throws on the
+    // instantiated type, so we must call it on refType.target (the uninstantiated
+    // declaration). The uninstantiated base types use type parameters (e.g., Promise<B>),
+    // so we map the parameter position back to the instantiated type arguments.
     if (objType.objectFlags & ts.ObjectFlags.Reference) {
       const refType = type as ts.TypeReference;
       if (refType.target && refType.target !== type) {
@@ -32,11 +31,31 @@ export function getPromiseTypeArg(
           );
           for (const base of targetBaseTypes) {
             if (base.symbol && PROMISE_NAMES.has(base.symbol.name)) {
-              // The target's base is Promise<T> (uninstantiated).
-              // The refType's typeArguments hold the instantiated params,
-              // so typeArgs[0] is the concrete type (e.g., string).
-              const typeArgs = checker.getTypeArguments(refType);
-              return typeArgs?.[0];
+              // Find which type parameter position maps to Promise's inner type.
+              // e.g., interface Foo<A, B> extends Promise<B> → B is at index 1
+              const baseTypeArgs = checker.getTypeArguments(
+                base as ts.TypeReference,
+              );
+              const promiseInner = baseTypeArgs?.[0];
+              if (
+                promiseInner &&
+                promiseInner.flags & ts.TypeFlags.TypeParameter
+              ) {
+                const targetParams = (refType.target as ts.InterfaceType)
+                  .typeParameters;
+                if (targetParams) {
+                  const paramIndex = targetParams.findIndex(
+                    (p) => p === promiseInner,
+                  );
+                  if (paramIndex >= 0) {
+                    const instantiatedArgs = checker.getTypeArguments(refType);
+                    return instantiatedArgs?.[paramIndex];
+                  }
+                }
+              }
+              // Fallback: Promise arg is concrete (not a type parameter)
+              // e.g., interface Foo<X> extends Promise<string> → return string
+              return promiseInner;
             }
           }
         } catch {
