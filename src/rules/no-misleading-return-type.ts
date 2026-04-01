@@ -6,236 +6,17 @@ import {
   getExpressionType,
 } from '../helpers/collect-return-types.js';
 import { containsAny } from '../helpers/contains-any.js';
+import { containsUnsafeTypeConstruct } from '../helpers/contains-unsafe-type-construct.js';
 import { createUnionType } from '../helpers/create-union-type.js';
-import { hasConstAssertion } from '../helpers/has-const-assertion.js';
+import { getPromiseTypeArg } from '../helpers/get-promise-type-arg.js';
+import { hasEffectiveConstAssertion } from '../helpers/has-effective-const-assertion.js';
 import { includesUndefined } from '../helpers/includes-undefined.js';
 import { isEscapeHatch } from '../helpers/is-escape-hatch.js';
 import { isExported } from '../helpers/is-exported.js';
+import { isOnlyPropertyLiteralWidening } from '../helpers/is-only-property-literal-widening.js';
+import { isOverloadImplementation } from '../helpers/is-overload-implementation.js';
 import { truncateTypeString } from '../helpers/truncate-type-string.js';
 import type { FunctionNode } from '../helpers/types.js';
-
-/**
- * Checks if the difference between two types is solely due to object property
- * literal widening (e.g., `false` → `boolean`, `42` → `number`).
- *
- * Without `as const`, TypeScript widens literal types in object literal properties
- * when inferring return types. However, `checker.getTypeAtLocation()` may return
- * the narrow (pre-widening) type for boolean and numeric literals in object
- * properties. This function detects when the annotated type is only "wider"
- * because of this widening difference, avoiding false positives.
- */
-function isOnlyPropertyLiteralWidening(
-  checker: ts.TypeChecker,
-  wider: ts.Type,
-  narrower: ts.Type,
-  depth = 0,
-): boolean {
-  if (depth > 3) return false; // Prevent deep recursion
-
-  // Don't attempt to decompose union annotated types — too complex
-  if (wider.isUnion()) return false;
-
-  // Handle union inferred types — each member must match
-  if (narrower.isUnion()) {
-    return narrower.types.every((t) =>
-      isOnlyPropertyLiteralWidening(checker, wider, t, depth),
-    );
-  }
-
-  // Both must be object types
-  if (
-    !(wider.flags & ts.TypeFlags.Object) ||
-    !(narrower.flags & ts.TypeFlags.Object)
-  ) {
-    return false;
-  }
-
-  // For tuple types, compare element types directly via getTypeArguments.
-  // This avoids iterating over inherited Array prototype methods whose
-  // signatures differ between tuple types (e.g., push, pop, map).
-  if (checker.isTupleType(wider) && checker.isTupleType(narrower)) {
-    const wElems = checker.getTypeArguments(wider as ts.TypeReference);
-    const nElems = checker.getTypeArguments(narrower as ts.TypeReference);
-    if (wElems.length !== nElems.length) return false;
-    if (wElems.length === 0) return false;
-    let hasWidening = false;
-    for (let i = 0; i < wElems.length; i++) {
-      if (
-        checker.isTypeAssignableTo(wElems[i], nElems[i]) &&
-        checker.isTypeAssignableTo(nElems[i], wElems[i])
-      ) {
-        continue;
-      }
-      const widenedN = checker.getBaseTypeOfLiteralType(nElems[i]);
-      if (
-        checker.isTypeAssignableTo(wElems[i], widenedN) &&
-        checker.isTypeAssignableTo(widenedN, wElems[i])
-      ) {
-        hasWidening = true;
-        continue;
-      }
-      return false;
-    }
-    return hasWidening;
-  }
-
-  const widerProps = checker.getPropertiesOfType(wider);
-  const narrowerProps = checker.getPropertiesOfType(narrower);
-
-  if (widerProps.length !== narrowerProps.length) return false;
-  if (widerProps.length === 0) return false;
-
-  let hasWidening = false;
-
-  for (const wProp of widerProps) {
-    const nProp = narrowerProps.find((p) => p.name === wProp.name);
-    if (!nProp) return false;
-
-    // Check optionality matches
-    const wOptional = !!(wProp.flags & ts.SymbolFlags.Optional);
-    const nOptional = !!(nProp.flags & ts.SymbolFlags.Optional);
-    if (wOptional !== nOptional) return false;
-
-    const wType = checker.getTypeOfSymbol(wProp);
-    const nType = checker.getTypeOfSymbol(nProp);
-
-    // If already equivalent, this property is fine
-    if (
-      checker.isTypeAssignableTo(wType, nType) &&
-      checker.isTypeAssignableTo(nType, wType)
-    ) {
-      continue;
-    }
-
-    // Try literal widening: getBaseTypeOfLiteralType(false) → boolean
-    const widenedN = checker.getBaseTypeOfLiteralType(nType);
-    if (
-      checker.isTypeAssignableTo(wType, widenedN) &&
-      checker.isTypeAssignableTo(widenedN, wType)
-    ) {
-      hasWidening = true;
-      continue;
-    }
-
-    // Try recursive check for nested object types
-    if (isOnlyPropertyLiteralWidening(checker, wType, nType, depth + 1)) {
-      hasWidening = true;
-      continue;
-    }
-
-    return false;
-  }
-
-  return hasWidening;
-}
-
-function isOverloadImplementation(
-  tsFunctionNode: ts.Node,
-  checker: ts.TypeChecker,
-): boolean {
-  if (
-    (ts.isFunctionDeclaration(tsFunctionNode) ||
-      ts.isMethodDeclaration(tsFunctionNode)) &&
-    tsFunctionNode.name
-  ) {
-    const symbol = checker.getSymbolAtLocation(tsFunctionNode.name);
-    if (symbol?.declarations && symbol.declarations.length > 1) {
-      return symbol.declarations.some(
-        (d) =>
-          (ts.isFunctionDeclaration(d) || ts.isMethodDeclaration(d)) && !d.body,
-      );
-    }
-  }
-  return false;
-}
-
-/**
- * Checks if an expression effectively has `as const`, including
- * cases where a variable was initialized with `as const`.
- * e.g., `const x = { A: "x" } as const; return x;`
- */
-function hasEffectiveConstAssertion(
-  checker: ts.TypeChecker,
-  expr: ts.Expression,
-): boolean {
-  if (hasConstAssertion(expr)) return true;
-
-  // Follow variable references: `const x = { ... } as const; return x;`
-  if (ts.isIdentifier(expr)) {
-    const symbol = checker.getSymbolAtLocation(expr);
-    const decl = symbol?.valueDeclaration;
-    if (
-      decl &&
-      ts.isVariableDeclaration(decl) &&
-      decl.initializer &&
-      ts.isExpression(decl.initializer)
-    ) {
-      return hasConstAssertion(decl.initializer);
-    }
-  }
-  return false;
-}
-
-/**
- * Checks if a type contains complex type constructs that make
- * isTypeAssignableTo unreliable for generic function comparison.
- * Conditional types, mapped types, index types, and indexed access
- * types involve deferred type resolution that can produce incorrect results.
- */
-function containsUnsafeTypeConstruct(
-  checker: ts.TypeChecker,
-  type: ts.Type,
-  visited = new Set<ts.Type>(),
-): boolean {
-  if (visited.has(type)) return false;
-  visited.add(type);
-
-  if (type.flags & ts.TypeFlags.Conditional) return true;
-  if (type.flags & ts.TypeFlags.Substitution) return true;
-  if (type.flags & ts.TypeFlags.Index) return true;
-  if (type.flags & ts.TypeFlags.IndexedAccess) return true;
-
-  if (
-    type.flags & ts.TypeFlags.Object &&
-    (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Mapped
-  ) {
-    return true;
-  }
-
-  if (type.isUnion() || type.isIntersection()) {
-    return type.types.some((t) =>
-      containsUnsafeTypeConstruct(checker, t, visited),
-    );
-  }
-
-  if (
-    type.flags & ts.TypeFlags.Object &&
-    (type as ts.ObjectType).objectFlags & ts.ObjectFlags.Reference
-  ) {
-    const typeArgs = checker.getTypeArguments(type as ts.TypeReference);
-    if (
-      typeArgs.some((t) => containsUnsafeTypeConstruct(checker, t, visited))
-    ) {
-      return true;
-    }
-  }
-
-  if (type.flags & ts.TypeFlags.Object) {
-    for (const prop of type.getProperties()) {
-      if (
-        containsUnsafeTypeConstruct(
-          checker,
-          checker.getTypeOfSymbol(prop),
-          visited,
-        )
-      ) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
 
 const createRule = ESLintUtils.RuleCreator(
   (name) =>
@@ -245,64 +26,6 @@ const createRule = ESLintUtils.RuleCreator(
 type FixOption = 'suggestion' | 'autofix' | 'none';
 type Options = [{ fix: FixOption }];
 
-const PROMISE_NAMES = new Set(['Promise', 'PromiseLike']);
-
-/**
- * Extracts the inner type T from Promise<T>, PromiseLike<T>, or types extending them.
- * Returns undefined if the type is not Promise-like.
- */
-function getPromiseTypeArg(
-  checker: ts.TypeChecker,
-  type: ts.Type,
-): ts.Type | undefined {
-  // Direct: Promise<T> or PromiseLike<T>
-  if (type.symbol && PROMISE_NAMES.has(type.symbol.name)) {
-    const typeArgs = checker.getTypeArguments(type as ts.TypeReference);
-    return typeArgs?.[0];
-  }
-  // Interface/class extending Promise (e.g., interface ApiResponse<T> extends Promise<T>)
-  // For a generic instantiation like ApiResponse<string>, getBaseTypes returns
-  // uninstantiated base types (Promise<T> instead of Promise<string>).
-  // We must use the reference type's own type arguments which hold the concrete types.
-  if (type.flags & ts.TypeFlags.Object) {
-    const objType = type as ts.ObjectType;
-    // For generic instantiations (Reference types), check the target's base types
-    // and map back through the instantiated type arguments.
-    if (objType.objectFlags & ts.ObjectFlags.Reference) {
-      const refType = type as ts.TypeReference;
-      if (refType.target && refType.target !== type) {
-        try {
-          const targetBaseTypes = checker.getBaseTypes(
-            refType.target as ts.InterfaceType,
-          );
-          for (const base of targetBaseTypes) {
-            if (base.symbol && PROMISE_NAMES.has(base.symbol.name)) {
-              // The target's base is Promise<T> (uninstantiated).
-              // The refType's typeArguments hold the instantiated params,
-              // so typeArgs[0] is the concrete type (e.g., string).
-              const typeArgs = checker.getTypeArguments(refType);
-              return typeArgs?.[0];
-            }
-          }
-        } catch {
-          // Not an interface type — ignore
-        }
-      }
-    } else {
-      // Non-reference object types (direct interface/class declarations)
-      try {
-        const baseTypes = checker.getBaseTypes(type as ts.InterfaceType);
-        for (const base of baseTypes) {
-          const arg = getPromiseTypeArg(checker, base);
-          if (arg) return arg;
-        }
-      } catch {
-        // Not an interface type — ignore
-      }
-    }
-  }
-  return undefined;
-}
 type MessageIds =
   | 'misleadingReturnType'
   | 'removeReturnType'
@@ -343,44 +66,18 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     const parserServices = ESLintUtils.getParserServices(context);
     const checker = parserServices.program.getTypeChecker();
 
-    // Captured via closure — all checker-dependent logic lives here
-    // "inferred" here means the approximated function return type:
-    // - Single return: widened via getBaseTypeOfLiteralType (matches TS signature inference)
-    // - Multi return: literal union from return expressions (matches TS union inference)
-    function isAnnotatedWiderThanInferred(
-      annotated: ts.Type,
-      inferred: ts.Type,
-    ) {
-      // isTypeAssignableTo is public API since TypeScript 5.0
-      const inferredFitsInAnnotated = checker.isTypeAssignableTo(
-        inferred,
-        annotated,
-      );
-      const annotatedFitsInInferred = checker.isTypeAssignableTo(
-        annotated,
-        inferred,
-      );
-      // Annotated is wider: inferred fits into annotated, but not vice versa
-      // e.g. string (annotated) vs "idle" (inferred): "idle" → string ✓, string → "idle" ✗
-      return inferredFitsInAnnotated && !annotatedFitsInInferred;
-    }
-
-    function checkFunction(node: FunctionNode) {
-      // Phase 1: ESTree-only cheap checks (no type checker calls)
-      if (!node.returnType) {
-        return;
+    // ── Phase 1: ESTree-only cheap checks ──────────────────────────────
+    function shouldSkipByESTree(node: FunctionNode): boolean {
+      if (!node.returnType || !node.body) {
+        return true;
       }
-
-      if (!node.body) {
-        return;
-      } // overload signatures, abstract methods, and declare functions all have no body
 
       if (
         node.parent != null &&
         node.parent.type === 'MethodDefinition' &&
         node.parent.kind === 'set'
       ) {
-        return;
+        return true;
       }
       if (
         node.parent != null &&
@@ -403,7 +100,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
                   getterKey.type === 'Literal' &&
                   member.key.value === getterKey.value)),
           );
-          if (hasSetter) return;
+          if (hasSetter) {
+            return true;
+          }
         }
       }
       if (
@@ -415,36 +114,35 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         // so flagging them causes false positives the developer cannot fix.
         // TODO(v2): Could check if the override uses a covariant (narrowed) return
         // type and only skip when the annotated type exactly matches the parent.
-        return;
+        return true;
       }
       if (node.generator) {
         // generators — v1 skip
         // TODO(v2): Generator return type is Iterator<T, TReturn, TNext>.
         // Unwrapping the yielded/return types is non-trivial. Skipped for v1.
-        return;
+        return true;
       }
-      // Generic functions: handled after Phase 3 (annotation resolution).
-      // If the annotation is concrete (no type parameters), comparison is safe.
-      // If the annotation references type parameters (e.g., T, T[]), skip.
+      return false;
+    }
 
-      // Phase 2: TS node mapping
-      const tsFunctionNode = parserServices.esTreeNodeToTSNodeMap.get(node);
-
-      // Overload implementation — skip (wider return type is intentional)
+    // ── Phase 2+3: Resolve annotated type ──────────────────────────────
+    function resolveAnnotatedType(
+      node: FunctionNode,
+      tsFunctionNode: ts.Node,
+    ): ts.Type | undefined {
       if (isOverloadImplementation(tsFunctionNode, checker)) {
-        return;
+        return undefined;
       }
 
-      // Phase 3: annotated type resolution
       const tsReturnTypeNode = parserServices.esTreeNodeToTSNodeMap.get(
-        node.returnType.typeAnnotation,
+        node.returnType!.typeAnnotation,
       );
       if (!ts.isTypeNode(tsReturnTypeNode)) {
-        return;
+        return undefined;
       }
       const annotatedType = checker.getTypeFromTypeNode(tsReturnTypeNode);
       if (isEscapeHatch(annotatedType)) {
-        return;
+        return undefined;
       }
 
       // Generic functions: skip only when annotation contains complex type constructs
@@ -455,15 +153,20 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         node.typeParameters &&
         containsUnsafeTypeConstruct(checker, annotatedType)
       ) {
-        return;
+        return undefined;
       }
 
-      // Phase 4: inferred type resolution
-      // For single-return and concise-arrow, apply getBaseTypeOfLiteralType to match
-      // TypeScript's return type inference (which widens lone literal returns).
-      // Multi-return unions are kept as-is — TS preserves literal unions.
-      let inferredType: ts.Type;
-      let hasAnyConstReturn = false;
+      return annotatedType;
+    }
+
+    // ── Phase 4: Resolve inferred type ─────────────────────────────────
+    // "inferred" here means the approximated function return type:
+    // - Single return: widened via getBaseTypeOfLiteralType (matches TS signature inference)
+    // - Multi return: literal union from return expressions (matches TS union inference)
+    function resolveInferredType(
+      node: FunctionNode,
+      tsFunctionNode: ts.Node,
+    ): { inferredType: ts.Type; hasAnyConstReturn: boolean } | undefined {
       try {
         if (
           node.type === 'ArrowFunctionExpression' &&
@@ -481,61 +184,76 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           const isConst =
             ts.isExpression(tsBodyExpr) &&
             hasEffectiveConstAssertion(checker, tsBodyExpr);
-          hasAnyConstReturn = isConst;
-          inferredType = isConst
-            ? rawType
-            : checker.getBaseTypeOfLiteralType(rawType);
-        } else {
-          // Block body: traverse return statements
-          const tsFuncBody = (
-            tsFunctionNode as
-              | ts.FunctionDeclaration
-              | ts.FunctionExpression
-              | ts.ArrowFunction
-              | ts.MethodDeclaration
-          ).body;
-          if (!tsFuncBody || !ts.isBlock(tsFuncBody)) {
-            return;
-          }
+          return {
+            inferredType: isConst
+              ? rawType
+              : checker.getBaseTypeOfLiteralType(rawType),
+            hasAnyConstReturn: isConst,
+          };
+        }
 
-          const returns = collectReturns(checker, tsFuncBody);
+        // Block body: traverse return statements
+        const tsFuncBody = (
+          tsFunctionNode as
+            | ts.FunctionDeclaration
+            | ts.FunctionExpression
+            | ts.ArrowFunction
+            | ts.MethodDeclaration
+        ).body;
+        if (!tsFuncBody || !ts.isBlock(tsFuncBody)) {
+          return undefined;
+        }
 
-          if (returns.length === 0) {
-            return;
-          } // void function — nothing to compare
+        const returns = collectReturns(checker, tsFuncBody);
 
-          if (returns.length === 1) {
-            const { type: singleType, expression: returnExpr } = returns[0];
-            const isConst = hasEffectiveConstAssertion(checker, returnExpr);
-            hasAnyConstReturn = isConst;
-            inferredType =
+        if (returns.length === 0) {
+          return undefined; // void function — nothing to compare
+        }
+
+        if (returns.length === 1) {
+          const { type: singleType, expression: returnExpr } = returns[0];
+          const isConst = hasEffectiveConstAssertion(checker, returnExpr);
+          return {
+            inferredType:
               singleType.isUnion() || isConst
                 ? singleType
-                : checker.getBaseTypeOfLiteralType(singleType);
-          } else {
-            const union = createUnionType(
-              checker,
-              returns.map((r) => r.type),
-            );
-            if (!union) {
-              return;
-            }
-            inferredType = union;
-            hasAnyConstReturn = returns.some((r) =>
-              hasEffectiveConstAssertion(checker, r.expression),
-            );
-          }
+                : checker.getBaseTypeOfLiteralType(singleType),
+            hasAnyConstReturn: isConst,
+          };
         }
+
+        const union = createUnionType(
+          checker,
+          returns.map((r) => r.type),
+        );
+        if (!union) {
+          return undefined;
+        }
+        return {
+          inferredType: union,
+          hasAnyConstReturn: returns.some((r) =>
+            hasEffectiveConstAssertion(checker, r.expression),
+          ),
+        };
       } catch (_e) {
         // Intentional broad catch: TypeScript's type resolution throws on recursive /
         // mutually-recursive functions (circular type dependency). Any other exception
         // here also results in a missed diagnostic rather than a crash.
-        return;
+        return undefined;
       }
+    }
 
+    // ── Phase 5: Compare types and report ──────────────────────────────
+    function compareAndReport(
+      node: FunctionNode,
+      tsFunctionNode: ts.Node,
+      annotatedType: ts.Type,
+      inferredType: ts.Type,
+      hasAnyConstReturn: boolean,
+    ): void {
       if (containsAny(checker, inferredType)) {
-        return;
-      } // any-contaminated inference is unreliable
+        return; // any-contaminated inference is unreliable
+      }
 
       // Inferred type may contain utility types resolved to conditional types
       // (e.g., Awaited<T> from Promise.resolve) or intersection narrowing
@@ -554,7 +272,6 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         }
       }
 
-      // Phase 5: comparison
       // effectiveInferred is the type to compare against annotated.
       // For async functions this may be unwrapped from Promise<T>.
       let effectiveInferred = inferredType;
@@ -567,8 +284,8 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
           return;
         }
         if (isEscapeHatch(annotatedInner)) {
-          return;
-        } // Promise<void>, Promise<any>, etc.
+          return; // Promise<void>, Promise<any>, etc.
+        }
 
         // Also unwrap inferred type if it's Promise<T> or PromiseLike<T>
         // (e.g., return someAsyncFn()). In async functions, returning a thenable
@@ -589,12 +306,22 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       ) {
         return; // implicit undefined path heuristic
       }
-      if (
-        !isAnnotatedWiderThanInferred(effectiveAnnotated, effectiveInferred)
-      ) {
+
+      // isTypeAssignableTo is public API since TypeScript 5.0
+      const inferredFitsInAnnotated = checker.isTypeAssignableTo(
+        effectiveInferred,
+        effectiveAnnotated,
+      );
+      const annotatedFitsInInferred = checker.isTypeAssignableTo(
+        effectiveAnnotated,
+        effectiveInferred,
+      );
+      // Annotated is wider: inferred fits into annotated, but not vice versa
+      if (!inferredFitsInAnnotated || annotatedFitsInInferred) {
         return;
       }
-      // Skip union redundancy: T | string where T extends string → semantically just string.
+
+      // Skip union redundancy: T | string where T extends string -> semantically just string.
       // TypeScript doesn't collapse these unions, so isTypeAssignableTo sees them as wider,
       // but the extra member is already a supertype of T's constraint — not misleading.
       if (effectiveAnnotated.isUnion() && node.typeParameters) {
@@ -604,17 +331,21 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         if (typeParamMembers.length > 0) {
           const allSubsumed = typeParamMembers.every((tp) => {
             const constraint = checker.getBaseConstraintOfType(tp);
-            if (!constraint) return false;
+            if (!constraint) {
+              return false;
+            }
             return effectiveAnnotated.types.some(
               (other) =>
                 other !== tp && checker.isTypeAssignableTo(constraint, other),
             );
           });
-          if (allSubsumed) return;
+          if (allSubsumed) {
+            return;
+          }
         }
       }
 
-      // Skip false positives from object literal property widening (e.g., false → boolean)
+      // Skip false positives from object literal property widening (e.g., false -> boolean)
       // without as const. TypeScript widens these in return type inference.
       if (
         !hasAnyConstReturn &&
@@ -627,6 +358,16 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         return;
       }
 
+      report(node, tsFunctionNode, annotatedType, effectiveInferred);
+    }
+
+    // ── Reporting ──────────────────────────────────────────────────────
+    function report(
+      node: FunctionNode,
+      tsFunctionNode: ts.Node,
+      annotatedType: ts.Type,
+      effectiveInferred: ts.Type,
+    ): void {
       // Build the inferred type string for the message.
       // For async functions, re-wrap effectiveInferred using the original wrapper name
       // (Promise or PromiseLike) to preserve the user's intent.
@@ -661,20 +402,22 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       );
 
       if (effectiveFix === 'autofix') {
-        return context.report({
-          node: node.returnType,
+        context.report({
+          node: node.returnType!,
           messageId: 'misleadingReturnType',
           data: reportData,
           fix: (fixer) => fixer.remove(node.returnType!),
         });
+        return;
       }
 
       if (effectiveFix !== 'suggestion') {
-        return context.report({
-          node: node.returnType,
+        context.report({
+          node: node.returnType!,
           messageId: 'misleadingReturnType',
           data: reportData,
         });
+        return;
       }
 
       const suggestions: {
@@ -702,19 +445,47 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
       // If no suggestions are available (exported + unsafe type string),
       // fall back to report-only.
       if (suggestions.length === 0) {
-        return context.report({
-          node: node.returnType,
+        context.report({
+          node: node.returnType!,
           messageId: 'misleadingReturnType',
           data: reportData,
         });
+        return;
       }
 
       context.report({
-        node: node.returnType,
+        node: node.returnType!,
         messageId: 'misleadingReturnType',
         data: reportData,
         suggest: suggestions,
       });
+    }
+
+    // ── Orchestrator ───────────────────────────────────────────────────
+    function checkFunction(node: FunctionNode) {
+      if (shouldSkipByESTree(node)) {
+        return;
+      }
+
+      const tsFunctionNode = parserServices.esTreeNodeToTSNodeMap.get(node);
+
+      const annotatedType = resolveAnnotatedType(node, tsFunctionNode);
+      if (!annotatedType) {
+        return;
+      }
+
+      const inferred = resolveInferredType(node, tsFunctionNode);
+      if (!inferred) {
+        return;
+      }
+
+      compareAndReport(
+        node,
+        tsFunctionNode,
+        annotatedType,
+        inferred.inferredType,
+        inferred.hasAnyConstReturn,
+      );
     }
 
     return {
