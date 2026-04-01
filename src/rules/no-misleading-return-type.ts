@@ -324,8 +324,9 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         const typeParamMembers = effectiveAnnotated.types.filter(
           (t) => t.flags & ts.TypeFlags.TypeParameter,
         );
-        if (typeParamMembers.length > 0) {
-          const allSubsumed = typeParamMembers.every((tp) => {
+        const allSubsumed =
+          typeParamMembers.length > 0 &&
+          typeParamMembers.every((tp) => {
             const constraint = checker.getBaseConstraintOfType(tp);
             if (!constraint) {
               return false;
@@ -335,9 +336,8 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
                 other !== tp && checker.isTypeAssignableTo(constraint, other),
             );
           });
-          if (allSubsumed) {
-            return;
-          }
+        if (allSubsumed) {
+          return;
         }
       }
 

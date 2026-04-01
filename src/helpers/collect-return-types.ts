@@ -20,14 +20,16 @@ export function getExpressionType(
   const type = checker.getTypeAtLocation(expr);
   // Recover type parameter: if the expression is a simple identifier whose
   // declared type is a type parameter, prefer that over the contextually-resolved type.
-  if (ts.isIdentifier(expr) && !(type.flags & ts.TypeFlags.TypeParameter)) {
-    const symbol = checker.getSymbolAtLocation(expr);
-    if (symbol) {
-      const declaredType = checker.getTypeOfSymbol(symbol);
-      if (declaredType.flags & ts.TypeFlags.TypeParameter) {
-        return declaredType;
-      }
-    }
+  if (!ts.isIdentifier(expr) || type.flags & ts.TypeFlags.TypeParameter) {
+    return type;
+  }
+  const symbol = checker.getSymbolAtLocation(expr);
+  if (!symbol) {
+    return type;
+  }
+  const declaredType = checker.getTypeOfSymbol(symbol);
+  if (declaredType.flags & ts.TypeFlags.TypeParameter) {
+    return declaredType;
   }
   return type;
 }
