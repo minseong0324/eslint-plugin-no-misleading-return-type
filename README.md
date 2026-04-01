@@ -290,7 +290,6 @@ function getStatus(loading: boolean): string {
 - Functions without return type annotations are intentionally skipped
 
 **The rule reports too much**
-- Single literal returns (e.g., `return "idle"`) are widened to match TS inference — this is expected
 - Object literal properties without `as const` may be contextually typed — use `as const` for precise types
 - Use `eslint-disable` for intentionally wide return types (e.g., stable API contracts)
 
