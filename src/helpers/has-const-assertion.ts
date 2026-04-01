@@ -6,14 +6,13 @@ export function hasConstAssertion(expr: ts.Expression): boolean {
     return hasConstAssertion(expr.expression);
   }
   // as const
-  if (ts.isAsExpression(expr)) {
-    if (
-      ts.isTypeReferenceNode(expr.type) &&
-      ts.isIdentifier(expr.type.typeName) &&
-      expr.type.typeName.text === 'const'
-    ) {
-      return true;
-    }
+  if (
+    ts.isAsExpression(expr) &&
+    ts.isTypeReferenceNode(expr.type) &&
+    ts.isIdentifier(expr.type.typeName) &&
+    expr.type.typeName.text === 'const'
+  ) {
+    return true;
   }
   // <const>expr (angle bracket — .ts only)
   if (expr.kind === ts.SyntaxKind.TypeAssertionExpression) {
