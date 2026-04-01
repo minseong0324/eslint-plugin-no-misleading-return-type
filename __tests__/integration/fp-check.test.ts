@@ -30,6 +30,64 @@ ruleTester.run('union-redundancy', noMisleadingReturnType, {
         }
       `,
     },
+    // === Utility type resolution in inferred type — must NOT warn ===
+    {
+      name: 'Promise.resolve(x) inferred as Promise<Awaited<T>> — not misleading',
+      code: `function f<T>(x: T): Promise<T> { return Promise.resolve(x); }`,
+    },
+    {
+      name: 'map.get(k)! inferred as NonNullable<T> — not misleading',
+      code: `function f<T>(m: Map<string, T>, k: string): T { return m.get(k)!; }`,
+    },
+    {
+      name: 'JSON.parse returns any — any contamination skip',
+      code: `function f<T>(x: string): T { return JSON.parse(x); }`,
+    },
+    // === Real-world generic patterns — must NOT warn ===
+    {
+      name: 'generic wrapper {data:T, ok:boolean}',
+      code: `function f<T>(data: T): { data: T; ok: boolean } { return { data, ok: true }; }`,
+    },
+    {
+      name: 'generic callback executor',
+      code: `function f<T>(fn: () => T): T { return fn(); }`,
+    },
+    {
+      name: 'generic spread merge T & U',
+      code: `function f<T extends object, U extends object>(a: T, b: U): T & U { return { ...a, ...b } as T & U; }`,
+    },
+    {
+      name: 'generic array map U[]',
+      code: `function f<T, U>(arr: T[], fn: (x: T) => U): U[] { return arr.map(fn); }`,
+    },
+    {
+      name: 'generic with as assertion',
+      code: `function f<T>(x: unknown): T { return x as T; }`,
+    },
+    {
+      name: 'generic returning arr[0]',
+      code: `function f<T>(arr: T[]): T { return arr[0]; }`,
+    },
+    {
+      name: 'generic ternary same type',
+      code: `function f<T>(x: T, y: T): T { return Math.random() > 0.5 ? x : y; }`,
+    },
+    {
+      name: 'two params return first',
+      code: `function f<T, U>(a: T, b: U): T { return a; }`,
+    },
+    {
+      name: 'default type param',
+      code: `function f<T = string>(x: T): T { return x; }`,
+    },
+    {
+      name: 'constrained to interface',
+      code: `function f<T extends { id: string }>(x: T): T { return x; }`,
+    },
+    {
+      name: 'constrained to Error class',
+      code: `function f<T extends Error>(x: T): T { return x; }`,
+    },
   ],
   invalid: [
     // === Genuine widening: extra members never returned ===
