@@ -537,6 +537,23 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         return;
       } // any-contaminated inference is unreliable
 
+      // Inferred type may contain utility types resolved to conditional types
+      // (e.g., Awaited<T> from Promise.resolve) or intersection narrowing
+      // (e.g., NonNullable<T> = T & {} from non-null assertion).
+      // These make isTypeAssignableTo unreliable — skip to avoid false positives.
+      if (node.typeParameters) {
+        if (containsUnsafeTypeConstruct(checker, inferredType)) {
+          return;
+        }
+        // NonNullable<T> = T & {} — intersection with type parameter from TS internal narrowing
+        if (
+          inferredType.isIntersection() &&
+          inferredType.types.some((t) => t.flags & ts.TypeFlags.TypeParameter)
+        ) {
+          return;
+        }
+      }
+
       // Phase 5: comparison
       // effectiveInferred is the type to compare against annotated.
       // For async functions this may be unwrapped from Promise<T>.
