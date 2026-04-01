@@ -1,5 +1,11 @@
 # eslint-plugin-no-misleading-return-type
 
+## 0.9.1
+
+### Patch Changes
+
+- Fix false positives from utility type resolution in generic functions (Awaited<T>, NonNullable<T>) ([#92](https://github.com/minseong0324/eslint-plugin-no-misleading-return-type/pull/92))
+
 ## 0.9.0
 
 ### Minor Changes
