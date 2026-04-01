@@ -63,10 +63,6 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       code: `async function getCode(): Promise<number> { return 42; }`,
     },
     {
-      name: 'PromiseLike<string> with single return — widened, no warning',
-      code: `async function f(): PromiseLike<string> { return "ok"; }`,
-    },
-    {
       name: 'async function with exact literal union annotation matching inferred union — no warning',
       code: `
         async function getStatus(x: boolean): Promise<"a" | "b"> {
@@ -144,77 +140,6 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
               output: `
         async function inner(): Promise<"ok"> { return "ok"; }
         async function outer(): Promise<"ok"> { return inner(); }
-      `,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'PromiseLike<string> wider than "a" | "b"',
-      code: `
-        async function f(x: boolean): PromiseLike<string> {
-          if (x) return "a";
-          return "b";
-        }
-      `,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `
-        async function f(x: boolean) {
-          if (x) return "a";
-          return "b";
-        }
-      `,
-            },
-            {
-              messageId: 'narrowReturnType',
-              output: `
-        async function f(x: boolean): PromiseLike<"a" | "b"> {
-          if (x) return "a";
-          return "b";
-        }
-      `,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      name: 'interface extending Promise — wider than inferred',
-      code: `
-        interface ApiResponse<T> extends Promise<T> { }
-        async function getStatus(x: boolean): ApiResponse<string> {
-          if (x) return "a";
-          return "b";
-        }
-      `,
-      errors: [
-        {
-          messageId: 'misleadingReturnType',
-          suggestions: [
-            {
-              messageId: 'removeReturnType',
-              output: `
-        interface ApiResponse<T> extends Promise<T> { }
-        async function getStatus(x: boolean) {
-          if (x) return "a";
-          return "b";
-        }
-      `,
-            },
-            {
-              messageId: 'narrowReturnType',
-              output: `
-        interface ApiResponse<T> extends Promise<T> { }
-        async function getStatus(x: boolean): ApiResponse<"a" | "b"> {
-          if (x) return "a";
-          return "b";
-        }
       `,
             },
           ],

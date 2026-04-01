@@ -173,11 +173,10 @@ export function isExported(
         break;
       }
       // Climb one level: ObjectExpression → Property → (parent ObjectExpression)
-      if (objExpr.parent?.type === 'Property') {
-        objExpr = objExpr.parent.parent;
-      } else {
+      if (objExpr.parent?.type !== 'Property') {
         break;
       }
+      objExpr = objExpr.parent.parent;
     }
   }
 

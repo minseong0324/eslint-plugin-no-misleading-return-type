@@ -161,7 +161,8 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
 
     // ── Phase 4: Resolve inferred type ─────────────────────────────────
     // "inferred" here means the approximated function return type:
-    // - Single return: widened via getBaseTypeOfLiteralType (matches TS signature inference)
+    // - Single return: widened via getBaseTypeOfLiteralType unless already a union
+    //   (matches TS signature inference — unions from ternaries are preserved as-is)
     // - Multi return: literal union from return expressions (matches TS union inference)
     function resolveInferredType(
       node: FunctionNode,
@@ -272,33 +273,28 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         }
       }
 
-      // effectiveInferred is the type to compare against annotated.
-      // For async functions this may be unwrapped from Promise<T>.
-      let effectiveInferred = inferredType;
-      let effectiveAnnotated: ts.Type;
-
-      if (node.async) {
-        // async functions: unwrap Promise<T> / PromiseLike<T> or types extending them
+      // For async functions, unwrap Promise<T> to compare inner types.
+      const resolved = (() => {
+        if (!node.async) {
+          return {
+            effectiveInferred: inferredType,
+            effectiveAnnotated: annotatedType,
+          };
+        }
         const annotatedInner = getPromiseTypeArg(checker, annotatedType);
-        if (!annotatedInner) {
-          return;
+        if (!annotatedInner || isEscapeHatch(annotatedInner)) {
+          return undefined;
         }
-        if (isEscapeHatch(annotatedInner)) {
-          return; // Promise<void>, Promise<any>, etc.
-        }
-
-        // Also unwrap inferred type if it's Promise<T> or PromiseLike<T>
-        // (e.g., return someAsyncFn()). In async functions, returning a thenable
-        // resolves to T, so compare inner types.
         const inferredInner = getPromiseTypeArg(checker, inferredType);
-        if (inferredInner) {
-          effectiveInferred = inferredInner;
-        }
-
-        effectiveAnnotated = annotatedInner;
-      } else {
-        effectiveAnnotated = annotatedType;
+        return {
+          effectiveInferred: inferredInner ?? inferredType,
+          effectiveAnnotated: annotatedInner,
+        };
+      })();
+      if (!resolved) {
+        return;
       }
+      const { effectiveInferred, effectiveAnnotated } = resolved;
 
       if (
         includesUndefined(effectiveAnnotated) &&
@@ -307,7 +303,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
         return; // implicit undefined path heuristic
       }
 
-      // isTypeAssignableTo is public API since TypeScript 5.0
+      // isTypeAssignableTo is public API since TypeScript 5.4
       const inferredFitsInAnnotated = checker.isTypeAssignableTo(
         effectiveInferred,
         effectiveAnnotated,
@@ -370,7 +366,7 @@ export const noMisleadingReturnType = createRule<Options, MessageIds>({
     ): void {
       // Build the inferred type string for the message.
       // For async functions, re-wrap effectiveInferred using the original wrapper name
-      // (Promise or PromiseLike) to preserve the user's intent.
+      // (Promise) to preserve the user's intent.
       const inferredTypeString = node.async
         ? `${annotatedType.symbol?.name ?? 'Promise'}<${checker.typeToString(
             effectiveInferred,

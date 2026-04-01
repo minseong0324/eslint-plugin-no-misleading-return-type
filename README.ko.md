@@ -208,7 +208,7 @@ async function getStatus(x: boolean): Promise<string> {
 
 - **단일 반환:** `getBaseTypeOfLiteralType`으로 넓힘 (TS 시그니처 추론과 일치)
 - **다중 반환:** 반환 표현식들의 리터럴 유니온 (TS 유니온 추론과 일치)
-- **비동기 함수:** `Promise<T>`, `PromiseLike<T>`, 그리고 이를 확장하는 타입 (예: `interface ApiResponse<T> extends Promise<T>`) 언래핑 후 내부 타입 비교
+- **비동기 함수:** `Promise<T>` 언래핑 후 내부 타입 비교 (TypeScript는 async 반환 타입으로 `Promise<T>`만 허용 — TS1064)
 - **제네릭 함수:**
   - **검사 (구체적 어노테이션):** `: object`, `: string`, `: number`, `: boolean` — 예: `function wrap<T>(x: T): object`에서 `object`이 `{ value: T }`보다 넓음을 감지
   - **검사 (단순 타입 파라미터):** `: T`, `: T[]`, `: T | null`, `: { value: T }`, `: Promise<T>` — 예: `function f<T>(x: T): T | null { return x; }`에서 null이 반환되지 않음을 감지
@@ -243,7 +243,7 @@ async function getStatus(x: boolean): Promise<string> {
 | `return` 문이 없는 함수 | void 함수 — 비교 대상 없음 |
 | 재귀 함수 및 타입 체커 예외 | 타입 해석 실패 시 (순환 타입, 체커 오류 등) lint 실행 중단 대신 해당 함수를 건너뜀 |
 | enum 리터럴 반환 | 단일 enum 멤버 반환은 enum 타입으로 넓혀짐 (예: `Status.Idle` → `Status`), TypeScript 추론과 일치. 다중 멤버 반환은 달라질 수 있음 |
-| 커스텀 thenable | `Promise<T>`, `PromiseLike<T>`, 그리고 이를 확장하는 타입은 언래핑됨. `then` 메서드를 가진 다른 thenable은 미지원 |
+| 커스텀 thenable | `Promise<T>`만 언래핑됨. `PromiseLike<T>`, Promise를 확장하는 인터페이스/클래스, 기타 thenable은 async 반환 타입으로 사용 불가 (TS1064) |
 | 오버로드 구현 함수 | 모든 오버로드 시그니처를 커버하기 위해 의도적으로 넓음 |
 | `override` 메서드 | 부모 클래스 반환 타입과 일치해야 함. 좁힐 수 있는 override를 놓칠 수 있음 (트레이드오프) |
 | `declare` 함수 / 추상 메서드 | 분석할 본문 없음 |

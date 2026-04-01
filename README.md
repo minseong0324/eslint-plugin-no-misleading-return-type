@@ -208,7 +208,7 @@ This rule uses TypeScript's type checker APIs to approximate the inferred return
 
 - **Single return:** Widened via `getBaseTypeOfLiteralType` (matches TS signature inference)
 - **Multiple returns:** Literal union from return expressions (matches TS union inference)
-- **Async functions:** `Promise<T>`, `PromiseLike<T>`, and types extending them (e.g., `interface ApiResponse<T> extends Promise<T>`) unwrapped; inner type compared
+- **Async functions:** `Promise<T>` unwrapped; inner type compared (TypeScript requires async return types to be exactly `Promise<T>` — TS1064)
 - **Generic functions:**
   - **Checked (concrete annotation):** `: object`, `: string`, `: number`, `: boolean` — e.g., `function wrap<T>(x: T): object` detects `object` is wider than `{ value: T }`
   - **Checked (simple type parameter):** `: T`, `: T[]`, `: T | null`, `: { value: T }`, `: Promise<T>` — e.g., `function f<T>(x: T): T | null { return x; }` detects null is never returned
@@ -243,7 +243,7 @@ Rare scenarios requiring specialized handling:
 | Functions with no `return` statement | Void functions — nothing to compare |
 | Recursive functions and type-checker exceptions | Any type-resolution failure (circular types, checker errors) silently skips the function rather than crashing the lint run |
 | Enum literal returns | Single enum member returns are widened to the enum type (e.g. `Status.Idle` → `Status`), matching TypeScript's inference. Multi-member returns may vary |
-| Custom thenables | `Promise<T>`, `PromiseLike<T>`, and types extending them are unwrapped. Other thenables with a `then` method are not |
+| Custom thenables | Only `Promise<T>` is unwrapped. `PromiseLike<T>`, custom interfaces/classes extending Promise, and other thenables are not valid async return types (TS1064) |
 | Overloaded function implementations | Intentionally wider to cover all overload signatures |
 | `override` methods | Must match parent class return type. May miss narrowable overrides (trade-off) |
 | `declare` functions / abstract methods | No body to analyze |
