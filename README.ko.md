@@ -216,7 +216,11 @@ async function getStatus(x: boolean): Promise<string> {
 - **단일 반환:** `getBaseTypeOfLiteralType`으로 넓힘 (TS 시그니처 추론과 일치)
 - **다중 반환:** 반환 표현식들의 리터럴 유니온 (TS 유니온 추론과 일치)
 - **비동기 함수:** `Promise<T>`, `PromiseLike<T>`, 그리고 이를 확장하는 타입 (예: `interface ApiResponse<T> extends Promise<T>`) 언래핑 후 내부 타입 비교
-- **제네릭 함수:** 구체적 주석 (예: `: object`, `: string`)과 단순 타입 파라미터 사용 (예: `: T | null`, `: { value: T }`)을 검사. 복잡한 타입 구조 (conditional, mapped, index, indexed access 타입)만 건너뜀
+- **제네릭 함수:**
+  - **검사 (구체적 주석):** `: object`, `: string`, `: number`, `: boolean` — 예: `function wrap<T>(x: T): object`에서 `object`이 `{ value: T }`보다 넓음을 감지
+  - **검사 (단순 타입 파라미터):** `: T`, `: T[]`, `: T | null`, `: { value: T }`, `: Promise<T>` — 예: `function f<T>(x: T): T | null { return x; }`에서 null이 반환되지 않음을 감지
+  - **건너뜀 (복잡한 타입 구조):** `: T extends X ? Y : Z` (conditional), `: { [K in keyof T]: V }` (mapped), `: keyof T` (index), `: T[K]` (indexed access), `: Partial<T>`, `: Required<T>`, `: Extract<T, U>`, `: Exclude<T, U>`
+  - **억제 (오해 아님):** `T | string` (T extends string인 경우 중복 유니온), `Promise.resolve()`의 `Promise<Awaited<T>>`, non-null assertion `!`의 `NonNullable<T>`
 
 이 접근 방식은 실제 사용 사례의 대부분을 커버합니다. 알려진 제한 사항은 [검사하지 않는 케이스](#검사하지-않는-케이스)를 참조하세요.
 
