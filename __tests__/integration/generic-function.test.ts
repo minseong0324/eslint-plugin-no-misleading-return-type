@@ -165,7 +165,7 @@ ruleTester.run('generic-function', noMisleadingReturnType, {
       name: 'multiple type params, concrete annotation matches',
       code: `
         function compare<T, U>(a: T, b: U): boolean {
-          return a === b;
+          return (a as unknown) === (b as unknown);
         }
       `,
     },

@@ -52,7 +52,7 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
           async fetchData(): Promise<string> { return 'default'; }
         }
         class Child extends Base {
-          async override fetchData(): Promise<string> {
+          override async fetchData(): Promise<string> {
             if (Math.random() > 0.5) return 'cached';
             return 'fetched';
           }

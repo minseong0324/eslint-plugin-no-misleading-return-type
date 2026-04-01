@@ -7,11 +7,11 @@ type ReturnInfo = { type: ts.Type; expression: ts.Expression };
  * Gets the type of a return expression, recovering type parameters when
  * TypeScript's contextual typing resolves them to their constraints.
  *
- * When a function has an explicit return type annotation (e.g., `: string`),
- * `getTypeAtLocation(x)` for a parameter `x: T extends "a" | "b"` may return
- * the resolved constraint `"a" | "b"` instead of the type parameter `T`.
- * This function detects that case and returns the declared type parameter,
- * matching what TypeScript would infer without the annotation.
+ * When a function has an explicit return type annotation, `getTypeAtLocation`
+ * on a return expression like `return value` (where `value` has declared type `T`)
+ * may return the resolved constraint of `T` instead of `T` itself due to
+ * contextual typing. This function detects that case and returns the declared
+ * type parameter, matching what TypeScript would infer without the annotation.
  */
 export function getExpressionType(
   checker: ts.TypeChecker,
@@ -20,14 +20,16 @@ export function getExpressionType(
   const type = checker.getTypeAtLocation(expr);
   // Recover type parameter: if the expression is a simple identifier whose
   // declared type is a type parameter, prefer that over the contextually-resolved type.
-  if (ts.isIdentifier(expr) && !(type.flags & ts.TypeFlags.TypeParameter)) {
-    const symbol = checker.getSymbolAtLocation(expr);
-    if (symbol) {
-      const declaredType = checker.getTypeOfSymbol(symbol);
-      if (declaredType.flags & ts.TypeFlags.TypeParameter) {
-        return declaredType;
-      }
-    }
+  if (!ts.isIdentifier(expr) || type.flags & ts.TypeFlags.TypeParameter) {
+    return type;
+  }
+  const symbol = checker.getSymbolAtLocation(expr);
+  if (!symbol) {
+    return type;
+  }
+  const declaredType = checker.getTypeOfSymbol(symbol);
+  if (declaredType.flags & ts.TypeFlags.TypeParameter) {
+    return declaredType;
   }
   return type;
 }

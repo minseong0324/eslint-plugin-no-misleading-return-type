@@ -68,23 +68,21 @@ export function isExported(
   // FE -> MethodDefinition -> ClassBody -> ClassDecl/Expr -> Export*Declaration
   if (node.parent?.type === 'MethodDefinition') {
     const classNode = node.parent.parent?.parent;
-    if (classNode) {
-      if (
-        classNode.parent?.type === 'ExportNamedDeclaration' ||
-        classNode.parent?.type === 'ExportDefaultDeclaration'
-      ) {
-        return true;
-      }
-      // export const Foo = class { ... }
-      if (
-        classNode.type === 'ClassExpression' &&
-        classNode.parent?.type === 'VariableDeclarator' &&
-        classNode.parent.parent?.type === 'VariableDeclaration' &&
-        (classNode.parent.parent.parent?.type === 'ExportNamedDeclaration' ||
-          classNode.parent.parent.parent?.type === 'ExportDefaultDeclaration')
-      ) {
-        return true;
-      }
+    if (
+      classNode?.parent?.type === 'ExportNamedDeclaration' ||
+      classNode?.parent?.type === 'ExportDefaultDeclaration'
+    ) {
+      return true;
+    }
+    // export const Foo = class { ... }
+    if (
+      classNode?.type === 'ClassExpression' &&
+      classNode.parent?.type === 'VariableDeclarator' &&
+      classNode.parent.parent?.type === 'VariableDeclaration' &&
+      (classNode.parent.parent.parent?.type === 'ExportNamedDeclaration' ||
+        classNode.parent.parent.parent?.type === 'ExportDefaultDeclaration')
+    ) {
+      return true;
     }
   }
 
@@ -113,28 +111,26 @@ export function isExported(
   // Case F: class method in indirectly exported class
   if (node.parent?.type === 'MethodDefinition') {
     const classNode = node.parent.parent?.parent;
-    if (classNode) {
-      // ClassDeclaration: class Foo {} export { Foo }
-      if (classNode.type === 'ClassDeclaration' && classNode.id) {
-        const tsClassNode = parserServices.esTreeNodeToTSNodeMap.get(classNode);
-        if (ts.isClassDeclaration(tsClassNode) && tsClassNode.name) {
-          return isSymbolExported(tsClassNode.name);
-        }
+    // ClassDeclaration: class Foo {} export { Foo }
+    if (classNode?.type === 'ClassDeclaration' && classNode.id) {
+      const tsClassNode = parserServices.esTreeNodeToTSNodeMap.get(classNode);
+      if (ts.isClassDeclaration(tsClassNode) && tsClassNode.name) {
+        return isSymbolExported(tsClassNode.name);
       }
-      // ClassExpression: const Foo = class {} ... export { Foo }
+    }
+    // ClassExpression: const Foo = class {} ... export { Foo }
+    if (
+      classNode?.type === 'ClassExpression' &&
+      classNode.parent?.type === 'VariableDeclarator'
+    ) {
+      const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(
+        classNode.parent,
+      );
       if (
-        classNode.type === 'ClassExpression' &&
-        classNode.parent?.type === 'VariableDeclarator'
+        ts.isVariableDeclaration(tsVarDecl) &&
+        ts.isIdentifier(tsVarDecl.name)
       ) {
-        const tsVarDecl = parserServices.esTreeNodeToTSNodeMap.get(
-          classNode.parent,
-        );
-        if (
-          ts.isVariableDeclaration(tsVarDecl) &&
-          ts.isIdentifier(tsVarDecl.name)
-        ) {
-          return isSymbolExported(tsVarDecl.name);
-        }
+        return isSymbolExported(tsVarDecl.name);
       }
     }
   }
@@ -173,11 +169,10 @@ export function isExported(
         break;
       }
       // Climb one level: ObjectExpression → Property → (parent ObjectExpression)
-      if (objExpr.parent?.type === 'Property') {
-        objExpr = objExpr.parent.parent;
-      } else {
+      if (objExpr.parent?.type !== 'Property') {
         break;
       }
+      objExpr = objExpr.parent.parent;
     }
   }
 

@@ -46,7 +46,8 @@ ruleTester.run('no-misleading-return-type', noMisleadingReturnType, {
       name: 'block body: return (expr as const) satisfies string with literal annotation — no warning',
       code: 'function f(): "idle" { return ("idle" as const) satisfies string; }',
     },
-    // as const on variable (no narrowing effect)
+    // as const on variable — TS1355 in strict tsc, but ESLint parser accepts it.
+    // Verifies the rule doesn't crash or false-positive on this pattern.
     {
       name: 'block body: return someVar as const — variable type unchanged, no false positive',
       code: `function getStatus(): string { const s: string = "idle"; return s as const; }`,
