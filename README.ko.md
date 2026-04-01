@@ -144,19 +144,21 @@ function getErrorMessages() {
   } as const;
 }
 
-// 단일 리터럴 반환 — 이 룰이 TS 반환 타입 추론을 근사하여 넓힘
+// 단일 리터럴 반환 — TS 반환 타입 추론에 맞춰 기본 타입으로 넓힘
 function getStatus(): string { return "idle"; }
 function getCode(): number { return 404; }
 
-// 주석이 추론과 일치
-function getStatus(): "idle" { return "idle"; }
+// 다중 반환 유니온 — annotation이 추론된 유니온과 일치
+function getStatus(loading: boolean): "loading" | "idle" {
+  if (loading) return "loading";
+  return "idle";
+}
 
 // 이스케이프 해치 (의도적으로 넓은 타입)
 function run(): void { console.log("done"); }
 function parse(s: string): any { return JSON.parse(s); }
 
 // 비동기 함수, 내부 타입 일치
-async function greet(): Promise<"hello"> { return "hello"; }
 async function greet(): Promise<string> { return "hello"; }  // 단일 반환 — string으로 넓힘
 ```
 
