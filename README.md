@@ -2,6 +2,12 @@
 
 Detect return type annotations that are misleadingly wider than what your implementation actually returns.
 
+> **📣 Now available in Biome as [`noMisleadingReturnType`](https://biomejs.dev/linter/rules/no-misleading-return-type/) (since Biome `v2.4.11`)**
+>
+> This rule has been ported to [Biome](https://biomejs.dev/), so you can use it out of the box without installing a separate plugin. Please give it a try and spread the word.
+>
+> Both the Biome rule and this ESLint plugin will continue to be actively maintained and improved in parallel — pick whichever fits your toolchain.
+
 ## Why this rule?
 
 TypeScript allows explicit return type annotations that are **wider** than what the implementation actually returns. This silently discards the precision you deliberately built into your code.
